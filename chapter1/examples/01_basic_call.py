@@ -9,8 +9,10 @@ Chapter 1-1: Claude API 기본 호출
 
 from dotenv import load_dotenv
 from anthropic import Anthropic
+import os
 
 load_dotenv()
+print(os.environ["ANTHROPIC_API_KEY"])
 
 # 1. 클라이언트 생성 (ANTHROPIC_API_KEY 환경변수를 자동으로 사용)
 client = Anthropic()
