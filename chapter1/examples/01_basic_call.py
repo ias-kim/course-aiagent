@@ -12,8 +12,10 @@ Claude API를 가장 작은 단위로 호출해 봅니다.
 
 from dotenv import load_dotenv
 from anthropic import Anthropic
+import os
 
 load_dotenv()
+print(os.environ["ANTHROPIC_API_KEY"])
 
 # 1. 클라이언트 생성
 # load_dotenv()가 .env 파일을 읽고, Anthropic()은 ANTHROPIC_API_KEY 환경변수로
