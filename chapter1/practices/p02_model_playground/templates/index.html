@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Playground</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Model Playground</h1>
+        <p class="subtitle">Claude 모델과 파라미터를 바꿔가며 응답 차이를 비교해보세요</p>
+
+        <!-- 설정 패널 -->
+        <div class="settings">
+            <div class="setting-group">
+                <label for="model-select">모델</label>
+                <select id="model-select">
+                    {% for key, model in models.items() %}
+                    <option value="{{ key }}" {{ 'selected' if key == 'sonnet' }}>
+                        {{ model.name }} — {{ model.description }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="setting-row">
+                <div class="setting-group">
+                    <label for="temperature">Temperature: <span id="temp-value">1.0</span></label>
+                    <input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0">
+                    <div class="range-labels">
+                        <span>정확한 (0)</span><span>창의적 (1)</span>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <label for="max-tokens">Max Tokens: <span id="tokens-value">1024</span></label>
+                    <input type="range" id="max-tokens" min="64" max="4096" step="64" value="1024">
+                    <div class="range-labels">
+                        <span>짧게 (64)</span><span>길게 (4096)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 채팅 영역 -->
+        <div class="chat-box" id="chat-box"></div>
+
+        <!-- 입력 영역 -->
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="메시지를 입력하세요..." autofocus>
+            <button id="send-btn">전송</button>
+            <button id="reset-btn" class="btn-reset">초기화</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const modelSelect = document.getElementById('model-select');
+        const tempSlider = document.getElementById('temperature');
+        const tempValue = document.getElementById('temp-value');
+        const tokensSlider = document.getElementById('max-tokens');
+        const tokensValue = document.getElementById('tokens-value');
+
+        const sessionId = crypto.randomUUID();
+        let isStreaming = false;
+
+        tempSlider.oninput = () => tempValue.textContent = tempSlider.value;
+        tokensSlider.oninput = () => tokensValue.textContent = tokensSlider.value;
+
+        function addMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = text;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return div;
+        }
+
+        function addStats(inputTokens, outputTokens, elapsed) {
+            const div = document.createElement('div');
+            div.className = 'stats';
+            div.textContent = `⏱ ${elapsed}s · 입력 ${inputTokens} + 출력 ${outputTokens} = ${inputTokens + outputTokens} 토큰`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message || isStreaming) return;
+
+            isStreaming = true;
+            sendBtn.disabled = true;
+            userInput.value = '';
+
+            addMessage('user', message);
+            const assistantDiv = addMessage('assistant', '');
+
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelSelect.value,
+                    message: message,
+                    temperature: parseFloat(tempSlider.value),
+                    max_tokens: parseInt(tokensSlider.value),
+                    session_id: sessionId,
+                }),
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.done) {
+                        addStats(data.input_tokens, data.output_tokens, data.elapsed);
+                    } else {
+                        assistantDiv.textContent += data.text;
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }
+            }
+
+            isStreaming = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+
+        async function resetChat() {
+            await fetch('/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: modelSelect.value,
+                    session_id: sessionId,
+                }),
+            });
+            chatBox.innerHTML = '';
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        resetBtn.addEventListener('click', resetChat);
+    </script>
+</body>
+</html>
