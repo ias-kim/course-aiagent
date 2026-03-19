@@ -22,7 +22,7 @@ with client.messages.stream(
     messages=[
         {"role": "user", "content": "AI Agent가 뭔지 3문장으로 설명해주세요."}
     ],
-) as stream:
+) as stream: 
     for text in stream.text_stream:
         print(text, end="", flush=True)
 
