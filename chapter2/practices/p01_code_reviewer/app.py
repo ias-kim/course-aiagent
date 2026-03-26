@@ -2,7 +2,7 @@
 실습 P01: AI 코드 리뷰어
 
 활용 기법: Few-shot + 구조 지정 CoT + 가드레일
-실행: python chapter2/practices/p01_code_reviewer/app.py → http://localhost:5001
+실행: python chapter2/practices/p01_code_reviewer/app.py → http://localhost:5004
 """
 
 import json
@@ -109,4 +109,4 @@ def reset():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5004)

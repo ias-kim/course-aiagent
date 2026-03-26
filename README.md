@@ -87,7 +87,29 @@ LLM이 외부 도구를 호출하여 실제 행동하는 Agent를 만듭니다.
 
 #### 실습 코드 (`chapter3/practices/`)
 
-_준비 중_
+| 폴더 | 주제 | 핵심 내용 |
+|------|------|-----------|
+| `p01_multi_tool_assistant/` | 멀티툴 어시스턴트 | 다중 도구 Agent 루프, 도구 호출 과정 실시간 시각화, 에러 처리 |
+
+### Chapter 4: MCP (Model Context Protocol)
+
+도구를 표준 프로토콜로 분리하여 재사용 가능한 Agent를 만듭니다.
+
+#### 예제 코드 (`chapter4/examples/`)
+
+| 파일 | 주제 | 핵심 내용 |
+|------|------|-----------|
+| `01_mcp_concept.py` | MCP 개념 | 프로토콜 구조, Ch3(Tool Use) 대비 장점 비교 |
+| `02_mcp_server.py` | MCP 서버 | `@mcp.tool()` 데코레이터로 도구 노출, JSON Schema 자동 생성 |
+| `03_mcp_client.py` | MCP 클라이언트 | 서버 연결, 도구 목록 자동 조회, `session.call_tool()` |
+| `04_multi_server.py` | 다중 서버 | 여러 MCP 서버 동시 연결, 도구→서버 라우팅 |
+| `05_mcp_chatbot.py` | MCP 대화형 Agent | Agent 루프 + MCP 통합, 대화 히스토리 관리 |
+
+#### 실습 코드 (`chapter4/practices/`)
+
+| 폴더 | 주제 | 핵심 내용 |
+|------|------|-----------|
+| `p01_schedule_agent/` | 일정 관리 Agent | MCP 서버(SQLite) + Flask Agent, 자연어로 일정 CRUD |
 
 ### 실행 방법
 
@@ -99,4 +121,4 @@ python chapter1/examples/01_basic_call.py
 
 - **LLM**: Claude API (Anthropic)
 - **언어**: Python 3.13+
-- **주요 라이브러리**: `anthropic`, `flask`, `python-dotenv`
+- **주요 라이브러리**: `anthropic`, `flask`, `mcp`, `python-dotenv`

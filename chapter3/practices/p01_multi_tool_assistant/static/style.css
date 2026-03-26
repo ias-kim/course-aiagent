@@ -1,0 +1,221 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+header h1 {
+    font-size: 1.5rem;
+}
+
+.subtitle {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+/* 도구 목록 배지 */
+.tool-list {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.tool-badge {
+    padding: 0.3rem 0.7rem;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+/* 채팅 영역 */
+.chat-area {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    height: 480px;
+    overflow-y: auto;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.system-msg {
+    text-align: center;
+    color: #999;
+    font-size: 0.85rem;
+    padding: 1rem;
+}
+
+.message {
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.message .role {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-right: 0.4rem;
+    vertical-align: top;
+}
+
+.message.user .role {
+    background: #4a90d9;
+    color: #fff;
+}
+
+.message.assistant .role {
+    background: #e8e8e8;
+    color: #555;
+}
+
+.message .text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 도구 호출 과정 표시 */
+.tool-step {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    margin: 0.3rem 0;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    border-left: 3px solid #ddd;
+    background: #fafafa;
+}
+
+.tool-step .tool-icon {
+    font-size: 1rem;
+}
+
+.tool-step .tool-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.tool-step .tool-input {
+    color: #888;
+    font-size: 0.75rem;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tool-step .tool-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tool-step.tool-calling {
+    border-left-color: #f0ad4e;
+    background: #fffdf5;
+}
+
+.tool-step.tool-calling .tool-status {
+    color: #f0ad4e;
+}
+
+.tool-step.tool-success {
+    border-left-color: #5cb85c;
+    background: #f5fff5;
+}
+
+.tool-step.tool-success .tool-status {
+    color: #5cb85c;
+}
+
+.tool-step.tool-error {
+    border-left-color: #d9534f;
+    background: #fff5f5;
+}
+
+.tool-step.tool-error .tool-status {
+    color: #d9534f;
+}
+
+/* 입력 영역 */
+.input-area {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#user-input {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+#user-input:focus {
+    border-color: #4a90d9;
+}
+
+#send-btn, #reset-btn {
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+#send-btn {
+    background: #4a90d9;
+    color: #fff;
+}
+
+#send-btn:hover:not(:disabled) {
+    background: #3a7bc8;
+}
+
+#reset-btn {
+    background: #e8e8e8;
+    color: #555;
+}
+
+#reset-btn:hover:not(:disabled) {
+    background: #d5d5d5;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 토큰 정보 */
+.token-info {
+    text-align: right;
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
