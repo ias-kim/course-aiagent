@@ -22,7 +22,7 @@ with client.messages.stream(
     messages=[
         {"role": "user", "content": "AI Agent가 뭔지 3문장으로 설명해주세요."}
     ],
-) as stream: 
+) as stream:
     for text in stream.text_stream:
         print(text, end="", flush=True)
 
@@ -51,7 +51,7 @@ with client.messages.stream(
             case "content_block_start":
                 print("[블록 시작]", end=" ")
             case "content_block_stop":
-                print(" [블록 끝]", end=" ")
+                print("[블록 끝]", end=" ")
             case "message_stop":
                 print("[완료]")
             case "text":
