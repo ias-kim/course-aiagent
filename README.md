@@ -79,6 +79,7 @@ LLM이 외부 도구를 호출하여 실제 행동하는 Agent를 만듭니다.
 
 | 파일 | 주제 | 핵심 내용 |
 |------|------|-----------|
+| `00_tool_use_6steps.py` | Tool Use 6단계 | 함수 구현 → Schema 정의 → API 호출 → Routing → Result 주입 → 테스트 |
 | `01_tool_use_basic.py` | Tool Use 기본 | 도구 정의(JSON Schema), tool_use/tool_result 흐름 |
 | `02_multiple_tools.py` | 다중 도구 | 여러 도구 중 LLM이 상황에 맞게 선택 |
 | `03_tool_use_loop.py` | Agent 루프 | tool_use → tool_result → 반복의 Agent 루프 패턴 |
