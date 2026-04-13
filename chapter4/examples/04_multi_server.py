@@ -5,8 +5,8 @@ Chapter 4-4: 다중 MCP 서버 연결
 다양한 도구를 활용합니다.
 
 예시:
-    서버 A: 날씨/환율 도구
-    서버 B: 파일 관리 도구
+    서버 A: 날씨/환율 도구 (02_mcp_server.py)
+    서버 B: 파일 관리 도구 (02_mcp_server_file.py)
     Agent가 두 서버에 동시 연결 → 모든 도구 사용 가능
 
 이 예제에서는:
@@ -34,6 +34,7 @@ MODEL = "claude-sonnet-4-20250514"
 
 # 서버 경로
 WEATHER_SERVER = str(Path(__file__).parent / "02_mcp_server.py")
+FILE_SERVER = str(Path(__file__).parent / "02_mcp_server_file.py")
 
 
 async def connect_to_server(server_path: str, server_name: str):
@@ -79,9 +80,12 @@ async def main():
     # 서버 1: 날씨/환율 도구 (02_mcp_server.py)
     tools1, session_map1, session1 = await connect_to_server(WEATHER_SERVER, "날씨/환율 서버")
 
+    # 서버 2: 파일 관리 도구 (02_mcp_server_file.py)
+    tools2, session_map2, session2 = await connect_to_server(FILE_SERVER, "파일 서버")
+
     # 모든 도구와 세션 매핑을 합침
-    all_tools = tools1
-    tool_to_session = {**session_map1}
+    all_tools = tools1 + tools2
+    tool_to_session = {**session_map1, **session_map2}
 
     print(f"\n  전체 도구 수: {len(all_tools)}개")
 
@@ -90,7 +94,7 @@ async def main():
     # ============================================================
     print("\n[2단계] 통합 Agent 루프")
 
-    user_message = "서울 날씨 알려주고, 100달러를 원화로 환산해줘. 지금 서울 몇 시인지도 알려줘."
+    user_message = "서울 날씨 알려주고, 현재 디렉토리에 어떤 파일들이 있는지도 알려줘."
     print(f"\n  사용자: {user_message}")
 
     messages = [{"role": "user", "content": user_message}]
@@ -140,6 +144,7 @@ async def main():
 
     # 세션 정리
     await session1.__aexit__(None, None, None)
+    await session2.__aexit__(None, None, None)
 
     # ============================================================
     # 정리
@@ -152,14 +157,14 @@ async def main():
 [핵심 패턴]
 
   # 여러 서버에 연결
-  session_a = connect("server_a.py")
-  session_b = connect("server_b.py")
+  session_a = connect("02_mcp_server.py")      # 날씨/환율
+  session_b = connect("02_mcp_server_file.py")  # 파일 관리
 
   # 모든 도구를 합침
   all_tools = tools_a + tools_b
 
   # 도구 이름 → 세션 매핑
-  tool_to_session = {"get_weather": session_a, "read_file": session_b}
+  tool_to_session = {"get_weather": session_a, "list_files": session_b}
 
   # Agent 루프에서 도구 이름으로 올바른 서버에 요청
   session = tool_to_session[tool_name]
