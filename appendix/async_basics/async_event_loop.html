@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>asyncio Event Loop 시각화</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #191923;
+    color: #ebebf0;
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    user-select: none;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* 타이틀 바 */
+  .title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background: #23252f;
+    border-bottom: 1px solid #35374a;
+  }
+  .title-bar h1 { font-size: 20px; font-weight: 700; }
+  .time-badge {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ffdc50;
+    font-family: 'Consolas', monospace;
+  }
+
+  /* 메인 영역 */
+  .main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* 코드 패널 */
+  .code-panel {
+    width: 420px;
+    min-width: 420px;
+    background: #12141c;
+    border-right: 2px solid #37394a;
+    display: flex;
+    flex-direction: column;
+  }
+  .code-header {
+    padding: 10px 16px;
+    background: #1e2029;
+    color: #a0a0b4;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid #2a2c3a;
+  }
+  .code-lines {
+    flex: 1;
+    padding: 8px 0;
+    overflow: hidden;
+  }
+  .code-line {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 8px 0 0;
+    font-family: 'Consolas', 'D2Coding', monospace;
+    font-size: 14px;
+    transition: background 0.3s;
+    position: relative;
+  }
+  .code-line.highlighted {
+    background: #32320f;
+  }
+  .code-line.highlighted::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: #ffdc50;
+  }
+  .code-line .arrow {
+    width: 18px;
+    text-align: center;
+    color: #ffdc50;
+    font-weight: 700;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .code-line.highlighted .arrow { opacity: 1; }
+  .code-line .line-num {
+    width: 28px;
+    text-align: right;
+    color: #464b64;
+    font-size: 13px;
+    margin-right: 12px;
+    transition: color 0.3s;
+  }
+  .code-line.highlighted .line-num { color: #ffdc50; }
+  .code-line .code-text {
+    flex: 1;
+    white-space: pre;
+    color: #78788c;
+    transition: color 0.3s;
+  }
+  .code-line.highlighted .code-text { color: #d2d2dc; font-weight: 600; }
+  .code-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+  /* 구문 강조 */
+  .kw { color: #c878ff; }
+  .fn { color: #64c8ff; }
+  .str { color: #82dc82; }
+  .code-line.highlighted .kw { color: #d8a0ff; }
+  .code-line.highlighted .fn { color: #8cdcff; }
+  .code-line.highlighted .str { color: #a0f0a0; }
+
+  /* 우측 시각화 */
+  .visual-panel {
+    flex: 1;
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Event Loop 바 */
+  .event-loop {
+    padding: 12px 18px;
+    background: #2d2f3c;
+    border: 2px solid #50c878;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .event-loop .label {
+    color: #50c878;
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .event-loop .action {
+    font-size: 14px;
+    transition: all 0.3s;
+  }
+
+  /* Task Queue */
+  .queue-section .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #82828a;
+    margin-bottom: 6px;
+  }
+  .queue-box {
+    background: #32344a;
+    border: 1px solid #46485a;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+  }
+  .queue-item {
+    padding: 6px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #191923;
+    transition: all 0.4s;
+  }
+  .queue-empty {
+    color: #606070;
+    font-size: 13px;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Tasks */
+  .tasks-section .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #82828a;
+    margin-bottom: 6px;
+  }
+  .tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    flex: 1;
+  }
+  .task-card {
+    background: #282a37;
+    border: 2px solid #3c3e50;
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.4s;
+  }
+  .task-card.active {
+    border-color: #ffdc50;
+    box-shadow: 0 0 16px rgba(255,220,80,0.15);
+  }
+  .task-name {
+    width: 100%;
+    text-align: center;
+    padding: 8px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    color: #191923;
+  }
+  .state-badge {
+    padding: 5px 22px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #141420;
+    transition: all 0.4s;
+  }
+  .state-eng {
+    font-size: 11px;
+    color: #707080;
+    font-family: 'Consolas', monospace;
+  }
+  .task-code-box {
+    width: 100%;
+    background: #1c1c28;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: 'Consolas', 'D2Coding', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    min-height: 48px;
+    transition: all 0.3s;
+  }
+  .task-marker {
+    font-size: 12px;
+    color: #ffdc50;
+    font-weight: 700;
+    height: 18px;
+  }
+
+  /* 하단 바 */
+  .bottom-bar {
+    padding: 12px 24px;
+    background: #23252f;
+    border-top: 1px solid #35374a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .step-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .step-badge {
+    color: #ffdc50;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .step-desc { font-size: 13px; }
+  .thread-label {
+    font-size: 12px;
+    color: #5a5a6e;
+  }
+
+  /* 네비게이션 */
+  .nav-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    background: #1e2029;
+    border-top: 1px solid #2a2c3a;
+  }
+  .nav-btn {
+    background: #35374a;
+    border: 1px solid #50526a;
+    color: #c8c8d4;
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .nav-btn:hover { background: #45476a; border-color: #6a6c8a; }
+  .nav-btn:active { background: #55578a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-dots {
+    display: flex;
+    gap: 8px;
+  }
+  .nav-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #40425a;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .nav-dot.active { background: #ffdc50; transform: scale(1.3); }
+  .nav-dot:hover { background: #80829a; }
+  .nav-hint {
+    font-size: 11px;
+    color: #50526a;
+    margin-left: 12px;
+  }
+
+  /* 색상 유틸 */
+  .c-americano { background: #ff9632; }
+  .c-latte { background: #50beff; }
+  .c-cappuccino { background: #b482ff; }
+  .s-pending { background: #5a5a6e; }
+  .s-running { background: #3cb964; }
+  .s-suspended { background: #f0aa28; }
+  .s-ready { background: #50b4f5; }
+  .s-done { background: #46465a; }
+
+  .tc-running { color: #82dc82; }
+  .tc-suspended { color: #c878ff; }
+  .tc-done { color: #82dc82; }
+  .tc-pending { color: #707080; }
+  .tc-ready { color: #707080; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="title-bar">
+    <h1>asyncio Event Loop 시각화</h1>
+    <span class="time-badge" id="time">T=0.0s</span>
+  </div>
+
+  <div class="main">
+    <!-- 코드 패널 -->
+    <div class="code-panel">
+      <div class="code-header">01_sync_vs_async.py (비동기 부분)</div>
+      <div class="code-lines" id="codeLines"></div>
+    </div>
+
+    <!-- 시각화 패널 -->
+    <div class="visual-panel">
+      <div class="event-loop">
+        <span class="label">Event Loop:</span>
+        <span class="action" id="loopAction"></span>
+      </div>
+
+      <div class="queue-section">
+        <div class="section-label">Task Queue (FIFO)</div>
+        <div class="queue-box" id="queueBox"></div>
+      </div>
+
+      <div class="tasks-section">
+        <div class="section-label">Tasks</div>
+        <div class="tasks-grid" id="tasksGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="step-info">
+      <span class="step-badge" id="stepBadge"></span>
+      <span class="step-desc" id="stepDesc"></span>
+    </div>
+    <span class="thread-label">Single Thread (MainThread)</span>
+  </div>
+
+  <div class="nav-bar">
+    <button class="nav-btn" id="prevBtn" onclick="prev()">&#9664; 이전</button>
+    <div class="nav-dots" id="navDots"></div>
+    <button class="nav-btn" id="nextBtn" onclick="next()">다음 &#9654;</button>
+    <span class="nav-hint">클릭 또는 ← → 키</span>
+  </div>
+</div>
+
+<script>
+const CODE = [
+  { tokens: [{t:'async def ',c:'kw'},{t:'order_coffee_async',c:'fn'},{t:'(name):',c:''}], tag: null },
+  { tokens: [{t:'    print',c:''},{t:'(f"',c:''},{t:'{name} 주문 접수',c:'str'},{t:'")',c:''}], tag: null },
+  { tokens: [{t:'    await ',c:'kw'},{t:'asyncio.sleep(2)',c:''}], tag: null },
+  { tokens: [{t:'    print',c:''},{t:'(f"',c:''},{t:'{name} 완성!',c:'str'},{t:'")',c:''}], tag: null },
+  { tokens: [{t:'    return ',c:'kw'},{t:'f"',c:''},{t:'{name} 완성',c:'str'},{t:'"',c:''}], tag: null },
+  { tokens: [], tag: null },
+  { tokens: [{t:'async def ',c:'kw'},{t:'run_async',c:'fn'},{t:'():',c:''}], tag: null },
+  { tokens: [{t:'    results = ',c:''},{t:'await ',c:'kw'},{t:'asyncio.gather(',c:''}], tag: null },
+  { tokens: [{t:'        order_coffee_async',c:'fn'},{t:'("아메리카노"),',c:'str'}], tag: '아메리카노' },
+  { tokens: [{t:'        order_coffee_async',c:'fn'},{t:'("라떼"),',c:'str'}], tag: '라떼' },
+  { tokens: [{t:'        order_coffee_async',c:'fn'},{t:'("카푸치노"),',c:'str'}], tag: '카푸치노' },
+  { tokens: [{t:'    )',c:''}], tag: null },
+];
+
+const TAG_COLORS = { '아메리카노': '#ff9632', '라떼': '#50beff', '카푸치노': '#b482ff' };
+const TASK_NAMES = ['아메리카노', '라떼', '카푸치노'];
+const TASK_CSS = ['c-americano', 'c-latte', 'c-cappuccino'];
+
+const STATE_LABEL = { PENDING:'대기', RUNNING:'실행 중', SUSPENDED:'await 중', READY:'재개 대기', DONE:'완료' };
+const STATE_CSS = { PENDING:'s-pending', RUNNING:'s-running', SUSPENDED:'s-suspended', READY:'s-ready', DONE:'s-done' };
+const TC_CSS = { PENDING:'tc-pending', RUNNING:'tc-running', SUSPENDED:'tc-suspended', READY:'tc-ready', DONE:'tc-done' };
+
+const FRAMES = [
+  {
+    time:'T=0.0s', action:'asyncio.gather() 호출',
+    queue:['아메리카노','라떼','카푸치노'],
+    tasks:{아메리카노:'PENDING',라떼:'PENDING',카푸치노:'PENDING'},
+    running:null, hl:[7,8,9,10,11],
+    desc:'gather()가 3개 코루틴을 Task로 감싸서 큐에 등록',
+    hints:{아메리카노:['큐에서','대기 중'],라떼:['큐에서','대기 중'],카푸치노:['큐에서','대기 중']},
+  },
+  {
+    time:'T=0.0s', action:'큐에서 아메리카노 꺼냄',
+    queue:['라떼','카푸치노'],
+    tasks:{아메리카노:'RUNNING',라떼:'PENDING',카푸치노:'PENDING'},
+    running:'아메리카노', hl:[1],
+    desc:'아메리카노: print("주문 접수") 실행 중',
+    hints:{아메리카노:['print(f"{name}','         주문 접수")'],라떼:['큐에서','대기 중'],카푸치노:['큐에서','대기 중']},
+  },
+  {
+    time:'T=0.0s', action:'await sleep → 양보 → 라떼 꺼냄',
+    queue:['카푸치노'],
+    tasks:{아메리카노:'SUSPENDED',라떼:'RUNNING',카푸치노:'PENDING'},
+    running:'라떼', hl:[2],
+    desc:'아메리카노 await sleep(2) → 양보 → 라떼 시작',
+    hints:{아메리카노:['await','  asyncio.sleep(2)'],라떼:['print(f"{name}','         주문 접수")'],카푸치노:['큐에서','대기 중']},
+  },
+  {
+    time:'T=0.0s', action:'await sleep → 양보 → 카푸치노 꺼냄',
+    queue:[],
+    tasks:{아메리카노:'SUSPENDED',라떼:'SUSPENDED',카푸치노:'RUNNING'},
+    running:'카푸치노', hl:[2],
+    desc:'라떼도 await sleep(2) → 양보 → 카푸치노 시작',
+    hints:{아메리카노:['await','  asyncio.sleep(2)'],라떼:['await','  asyncio.sleep(2)'],카푸치노:['print(f"{name}','         주문 접수")']},
+  },
+  {
+    time:'T=0.0s', action:'모두 await 중 → I/O 대기',
+    queue:[],
+    tasks:{아메리카노:'SUSPENDED',라떼:'SUSPENDED',카푸치노:'SUSPENDED'},
+    running:null, hl:[2],
+    desc:'3개 모두 sleep 중 → 이벤트 루프가 OS에 I/O 완료 대기 요청',
+    hints:{아메리카노:['await','  asyncio.sleep(2)'],라떼:['await','  asyncio.sleep(2)'],카푸치노:['await','  asyncio.sleep(2)']},
+  },
+  {
+    time:'T=2.0s', action:'sleep 완료! → 아메리카노 재개',
+    queue:['라떼','카푸치노'],
+    tasks:{아메리카노:'RUNNING',라떼:'READY',카푸치노:'READY'},
+    running:'아메리카노', hl:[3,4],
+    desc:'2초 경과! sleep 완료 → 아메리카노부터 재개 (FIFO)',
+    hints:{아메리카노:['print(f"{name} 완성!")','return f"{name} 완성"'],라떼:['sleep 완료','재개 대기 중'],카푸치노:['sleep 완료','재개 대기 중']},
+  },
+  {
+    time:'T=2.0s', action:'아메리카노 완료 → 라떼 재개',
+    queue:['카푸치노'],
+    tasks:{아메리카노:'DONE',라떼:'RUNNING',카푸치노:'READY'},
+    running:'라떼', hl:[3,4],
+    desc:'아메리카노 print("완성!") → return → 라떼 재개',
+    hints:{아메리카노:['return','  f"{name} 완성"'],라떼:['print(f"{name} 완성!")','return f"{name} 완성"'],카푸치노:['sleep 완료','재개 대기 중']},
+  },
+  {
+    time:'T=2.0s', action:'라떼 완료 → 카푸치노 재개',
+    queue:[],
+    tasks:{아메리카노:'DONE',라떼:'DONE',카푸치노:'RUNNING'},
+    running:'카푸치노', hl:[3,4],
+    desc:'라떼 완료 → 카푸치노 재개',
+    hints:{아메리카노:['return','  f"{name} 완성"'],라떼:['return','  f"{name} 완성"'],카푸치노:['print(f"{name} 완성!")','return f"{name} 완성"']},
+  },
+  {
+    time:'T=2.0s', action:'모든 Task 완료!',
+    queue:[],
+    tasks:{아메리카노:'DONE',라떼:'DONE',카푸치노:'DONE'},
+    running:null, hl:[11],
+    desc:'총 소요시간: 약 2초 (3잔 동시 제조!)',
+    hints:{아메리카노:['return','  f"{name} 완성"'],라떼:['return','  f"{name} 완성"'],카푸치노:['return','  f"{name} 완성"']},
+  },
+];
+
+let current = 0;
+
+// 코드 라인 초기 렌더링
+function initCode() {
+  const el = document.getElementById('codeLines');
+  CODE.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className = 'code-line';
+    div.id = 'codeLine' + i;
+
+    let html = `<span class="arrow">></span>`;
+    html += `<span class="line-num">${(i+1).toString().padStart(2,' ')}</span>`;
+    html += `<span class="code-text">`;
+    line.tokens.forEach(tk => {
+      if (tk.c) html += `<span class="${tk.c}">${esc(tk.t)}</span>`;
+      else html += esc(tk.t);
+    });
+    html += `</span>`;
+    if (line.tag && TAG_COLORS[line.tag]) {
+      html += `<span class="code-dot" style="background:${TAG_COLORS[line.tag]}"></span>`;
+    }
+    div.innerHTML = html;
+    el.appendChild(div);
+  });
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 네비게이션 도트
+function initDots() {
+  const el = document.getElementById('navDots');
+  FRAMES.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot';
+    dot.id = 'dot' + i;
+    dot.onclick = () => goTo(i);
+    el.appendChild(dot);
+  });
+}
+
+function render() {
+  const f = FRAMES[current];
+
+  // 시간
+  document.getElementById('time').textContent = f.time;
+
+  // Event Loop
+  document.getElementById('loopAction').textContent = f.action;
+
+  // 코드 하이라이트
+  CODE.forEach((_, i) => {
+    const el = document.getElementById('codeLine' + i);
+    el.classList.toggle('highlighted', f.hl.includes(i));
+  });
+
+  // Queue
+  const qb = document.getElementById('queueBox');
+  if (f.queue.length === 0) {
+    qb.innerHTML = '<span class="queue-empty">(비어 있음)</span>';
+  } else {
+    qb.innerHTML = f.queue.map(name => {
+      const idx = TASK_NAMES.indexOf(name);
+      return `<span class="queue-item ${TASK_CSS[idx]}">${name}</span>`;
+    }).join('');
+  }
+
+  // Tasks
+  const tg = document.getElementById('tasksGrid');
+  tg.innerHTML = TASK_NAMES.map((name, i) => {
+    const state = f.tasks[name];
+    const isActive = f.running === name;
+    const hints = f.hints[name];
+    return `
+      <div class="task-card ${isActive ? 'active' : ''}">
+        <div class="task-name ${TASK_CSS[i]}">${name}</div>
+        <span class="state-badge ${STATE_CSS[state]}">${STATE_LABEL[state]}</span>
+        <span class="state-eng">${state}</span>
+        <div class="task-code-box ${TC_CSS[state]}">${hints.map(h=>esc(h)).join('<br>')}</div>
+        <div class="task-marker">${isActive ? '>>> 실행 중' : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 하단
+  document.getElementById('stepBadge').textContent = `Step ${current+1}/${FRAMES.length}`;
+  document.getElementById('stepDesc').textContent = f.desc;
+
+  // 버튼
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === FRAMES.length - 1;
+
+  // 도트
+  FRAMES.forEach((_, i) => {
+    document.getElementById('dot' + i).classList.toggle('active', i === current);
+  });
+}
+
+function next() { if (current < FRAMES.length - 1) { current++; render(); } }
+function prev() { if (current > 0) { current--; render(); } }
+function goTo(i) { current = i; render(); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(FRAMES.length - 1); }
+});
+
+// 클릭으로 다음
+document.querySelector('.main').addEventListener('click', e => {
+  if (e.target.closest('.nav-bar')) return;
+  next();
+});
+
+initCode();
+initDots();
+render();
+</script>
+</body>
+</html>
