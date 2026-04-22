@@ -118,5 +118,9 @@ print("""
 │ 적합한 상황    │ 프로토타이핑         │ 프로덕션, 팀 협업      │
 └────────────────┴─────────────────────┴──────────────────────┘
 
-다음 예제에서 MCP 서버를 직접 만들어봅니다 → 02_mcp_server.py
+다음 예제 로드맵:
+  02_connection_*      → Client-Server 초기 연결 절차 확인 (JSON-RPC, handshake)
+  03_components_*      → Resource / Tool / Prompt 본질 비교 (LLM 없이 직접 호출)
+  04_agent_with_mcp    → 3대 구성요소 + Claude LLM 결합 Agent (실전)
+  05_multi_server*     → 다중 서버 연결과 라우팅 패턴
 """)
