@@ -78,6 +78,9 @@ async def main():
     print(f"  command: {server_params.command}")
     print(f"  args:    {server_params.args}")
 
+    # 설정 서버 구동 후 stdio로 서버와 연결 수립
+    # read: server -> client
+    # write: client -> server
     async with stdio_client(server_params) as (read, write):
         print("\n  -> Transport 수립 완료 (서버 프로세스 기동됨)")
 
