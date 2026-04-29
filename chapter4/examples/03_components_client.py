@@ -94,6 +94,7 @@ async def main():
                 "add_note",
                 {"title": "테스트 메모", "body": "Tool 호출로 추가됨"},
             )
+            
             box("반환된 결과", result.content[0].text)
 
             # 3) 상태 변경 확인 - Resource로 다시 읽기
