@@ -1,7 +1,7 @@
 """
 Chapter 3-0: Tool Use 6단계 한눈에 보기
 
-Function Calling의 전체 흐름을 6단계로 정리한 최소 예제입니다.
+Function Calling의 전체 흐름을 6단계로 쪼개서 보는 최소 예제입니다.
 
   ① 함수/API 구현
   ② Tool metadata 정의 (schema)
@@ -22,10 +22,10 @@ MODEL = "claude-sonnet-4-20250514"
 
 
 # ── Step ① 함수/API 구현 ─────────────────────────────────
-# 실제로 실행될 함수들을 구현합니다.
+# 실제 실행은 LLM이 아니라 우리 코드의 함수가 담당합니다.
 
 def get_weather(city: str) -> str:
-    """도시의 날씨를 반환하는 함수 (데모용 하드코딩)"""
+    """도시의 날씨를 반환합니다. 데모용이라 값을 하드코딩했습니다."""
     data = {"Seoul": "맑음, 18°C", "Busan": "흐림, 22°C"}
     return data.get(city, f"{city}: 정보 없음")
 
@@ -36,8 +36,8 @@ def add_numbers(a: float, b: float) -> str:
 
 
 # ── Step ② Tool metadata 정의 (schema) ──────────────────
-# LLM이 읽을 수 있는 JSON Schema 형태로 도구 명세를 작성합니다.
-# description이 명확해야 LLM이 올바른 도구를 선택합니다.
+# LLM에게 "이런 도구가 있다"고 알려줄 명세를 JSON Schema로 작성합니다.
+# description이 구체적일수록 모델이 적절한 상황에서 도구를 선택합니다.
 
 tools = [
     {
@@ -67,11 +67,11 @@ tools = [
 
 
 # ── Step ④ Tool routing / dispatch 구현 ─────────────────
-# LLM이 반환한 도구 이름을 보고 실제 함수를 매핑·실행합니다.
-# (Step ③ 이전에 미리 정의해 둡니다)
+# LLM이 요청한 도구 이름을 실제 Python 함수로 연결합니다.
+# 이 라우팅 코드가 있어야 tool_use 요청이 실제 실행으로 이어집니다.
 
 def dispatch_tool(name: str, args: dict) -> str:
-    """도구 이름 → 실제 함수 라우팅"""
+    """도구 이름을 보고 실제 함수를 찾아 실행합니다."""
     if name == "get_weather":
         return get_weather(args["city"])
     elif name == "add_numbers":
@@ -81,7 +81,7 @@ def dispatch_tool(name: str, args: dict) -> str:
 
 
 # ── Step ③ + ⑤ LLM API 호출 & 결과 주입 ────────────────
-# 하나의 함수로 전체 흐름을 실행합니다.
+# 위에서 나눈 단계를 하나의 실행 흐름으로 묶습니다.
 #   ③ tools(schema)를 포함하여 LLM API 호출
 #   ⑤ 도구 실행 결과를 tool_result로 LLM에 다시 전달
 
@@ -92,34 +92,34 @@ def run(user_message: str):
 
     messages = [{"role": "user", "content": user_message}]
 
-    # ── Step ③: tools를 포함하여 API 호출
+    # ── Step ③: tools 명세를 함께 보내 모델이 도구를 선택할 수 있게 합니다.
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        tools=tools,          # ← schema 전달
+        tools=tools,          # 모델에게 사용 가능한 도구 목록을 전달합니다.
         messages=messages,
     )
 
-    # 도구 호출이 필요 없으면 바로 답변
+    # 도구가 필요 없다고 판단하면 모델은 바로 최종 답변을 줍니다.
     if response.stop_reason == "end_turn":
         print(f"[LLM 답변] {response.content[0].text}")
         return
 
-    # ── Step ④: 도구 호출 요청이면 dispatch
+    # ── Step ④: tool_use가 오면 우리 코드가 실제 함수를 실행합니다.
     tool_block = next(b for b in response.content if b.type == "tool_use")
     print(f"[LLM 요청] 도구={tool_block.name}, 인자={tool_block.input}")
 
     result = dispatch_tool(tool_block.name, tool_block.input)
     print(f"[도구 실행] 결과={result}")
 
-    # ── Step ⑤: tool_result를 LLM에 주입
+    # ── Step ⑤: 실행 결과를 tool_result로 다시 모델에게 알려줍니다.
     messages.append({"role": "assistant", "content": response.content})
     messages.append({
         "role": "user",
         "content": [
             {
                 "type": "tool_result",
-                "tool_use_id": tool_block.id,   # 요청-결과 매칭
+                "tool_use_id": tool_block.id,   # 어떤 요청의 결과인지 맞춰 주는 ID입니다.
                 "content": result,
             }
         ],
@@ -135,7 +135,7 @@ def run(user_message: str):
 
 
 # ── Step ⑥ 테스트 및 검증 ───────────────────────────────
-# 다양한 질문으로 LLM이 올바른 도구를 선택하는지 확인합니다.
+# 다양한 질문으로 모델이 도구가 필요한지, 어떤 도구를 쓸지 확인합니다.
 
 if __name__ == "__main__":
     run("서울 날씨 어때?")          # → get_weather 호출

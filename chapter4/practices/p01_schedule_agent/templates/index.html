@@ -13,14 +13,14 @@
             <p class="subtitle">MCP 서버로 분리된 도구를 활용하는 Agent</p>
         </header>
 
-        <!-- 사용 가능한 도구 -->
+        <!-- MCP 서버가 제공하는 일정 도구 목록 -->
         <div class="tool-list">
             {% for name, info in tool_info.items() %}
             <span class="tool-badge">{{ info.icon }} {{ info.label }}</span>
             {% endfor %}
         </div>
 
-        <!-- 채팅 영역 -->
+        <!-- 대화와 도구 실행 과정이 표시되는 영역 -->
         <div id="chat-area" class="chat-area">
             <div id="messages" class="messages">
                 <div class="system-msg">
@@ -30,7 +30,7 @@
             </div>
         </div>
 
-        <!-- 입력 영역 -->
+        <!-- 사용자 메시지 입력 영역 -->
         <div class="input-area">
             <input type="text" id="user-input" placeholder="메시지를 입력하세요..."
                    onkeydown="if(event.key === 'Enter') sendMessage()">

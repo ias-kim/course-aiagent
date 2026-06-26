@@ -19,7 +19,7 @@ MODEL = "claude-sonnet-4-20250514"
 
 
 def call_llm(system: str, user_message: str) -> str:
-    """단일 LLM 호출"""
+    """파이프라인 각 단계에서 공통으로 사용하는 단일 LLM 호출 함수입니다."""
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
@@ -29,8 +29,8 @@ def call_llm(system: str, user_message: str) -> str:
     return response.content[0].text
 
 
-# 파이프라인 단계 정의 — 각 단계의 system이 Prompt Template
-# {language}, {length}는 사용자 입력으로 치환됨
+# 파이프라인 단계 정의입니다. 각 단계의 system 문장이 하나의 Prompt Template입니다.
+# {language}, {length} 자리에는 화면에서 고른 사용자 옵션이 들어갑니다.
 PIPELINE_STEPS = [
     {
         "name": "번역",
@@ -58,14 +58,14 @@ def index():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    """파이프라인 실행 — 각 단계 결과를 SSE로 순차 전송"""
+    """파이프라인을 실행하고 각 단계의 시작/완료 결과를 SSE로 순서대로 보냅니다."""
     data = request.json
     article = data["article"]
     language = data.get("language", "한국어")
     length = data.get("length", "3문장")
 
     def generate():
-        # 각 단계의 출력이 다음 단계의 입력이 되는 순차 체인
+        # 각 단계의 출력이 다음 단계의 입력이 됩니다. 이것이 Prompt Chaining의 핵심입니다.
         current_text = article
 
         for i, step in enumerate(PIPELINE_STEPS):
@@ -77,7 +77,7 @@ def analyze():
 
             yield f"data: {json.dumps({'step': i + 1, 'name': step['name'], 'status': 'done', 'result': result})}\n\n"
 
-            # 이전 단계 출력 → 다음 단계 입력 (체인 연결)
+            # 방금 나온 결과를 다음 단계 입력으로 넘겨 체인을 이어갑니다.
             current_text = result
 
         yield f"data: {json.dumps({'done': True})}\n\n"

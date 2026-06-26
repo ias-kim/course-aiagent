@@ -1,15 +1,15 @@
 """
 Chapter 4-5: 다중 MCP 서버 연결
 
-실제 Agent는 여러 MCP 서버에 동시 연결하여
-분야별로 전문화된 도구를 조합해 사용합니다.
+실제 Agent는 여러 MCP 서버에 동시에 연결해
+분야별로 나뉜 도구를 함께 사용할 수 있습니다.
 
 이 예제의 구성:
     서버 A: 메모장 (03_components_server.py) - Tool/Resource/Prompt
     서버 B: 파일시스템 (05_multi_server_file.py) - Tool만
 
-의도적으로 성격이 다른 두 서버를 연결해,
-'도구 네임스페이스 관리'와 '세션 분리'의 현실적 필요성을 보여줍니다.
+성격이 다른 두 서버를 일부러 함께 연결해,
+도구 이름 관리와 세션 분리가 왜 필요한지 보여줍니다.
 
 핵심 패턴:
     1) 서버별 세션을 딕셔너리로 관리
@@ -47,7 +47,7 @@ SERVERS = {
 
 
 async def connect_server(stack: AsyncExitStack, server_path: str, label: str):
-    """서버 연결을 AsyncExitStack으로 안전하게 관리."""
+    """MCP 서버 하나에 연결하고, 세션과 도구 목록을 반환합니다."""
     params = StdioServerParameters(command=sys.executable, args=[server_path])
     read, write = await stack.enter_async_context(stdio_client(params))
     session = await stack.enter_async_context(ClientSession(read, write))
@@ -63,7 +63,7 @@ async def main():
     print(" Chapter 4-5: 다중 MCP 서버 연결")
     print("=" * 70)
 
-    # AsyncExitStack으로 여러 세션을 한 번에 관리
+    # AsyncExitStack을 쓰면 여러 MCP 세션의 종료 처리를 한곳에서 관리할 수 있습니다.
     async with AsyncExitStack() as stack:
         print("\n[1단계] 서버 연결")
         sessions = {}
@@ -74,9 +74,9 @@ async def main():
             session, tools = await connect_server(stack, path, label)
             sessions[label] = session
 
-            # 도구를 Claude 형식으로 변환 + 라우팅 테이블 작성
+            # 도구를 Claude 형식으로 변환하면서, 어떤 서버로 보낼지도 함께 기록합니다.
             for tool in tools:
-                # 이름 충돌 방지를 위한 접두사 정책
+                # 서로 다른 서버에 같은 이름의 도구가 있을 수 있으므로 접두사를 붙입니다.
                 prefixed_name = f"{label}__{tool.name}"
                 all_tools.append({
                     "name": prefixed_name,
@@ -90,7 +90,7 @@ async def main():
             print(f"    - {t['name']}")
 
         # ============================================================
-        # 2단계: Agent 루프
+        # 2단계: 여러 서버의 도구를 하나의 Agent 루프에서 사용합니다.
         # ============================================================
         print("\n[2단계] Agent 실행")
         user_message = "내 메모를 검색해 'MCP' 관련된 것을 찾고, 현재 디렉토리 파일 목록도 알려줘."

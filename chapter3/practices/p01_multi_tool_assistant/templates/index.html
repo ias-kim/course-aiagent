@@ -13,14 +13,14 @@
             <p class="subtitle">LLM이 도구를 선택하고 실행하는 과정을 관찰하세요</p>
         </header>
 
-        <!-- 사용 가능한 도구 목록 -->
+        <!-- 현재 Agent가 사용할 수 있는 도구 목록 -->
         <div class="tool-list">
             {% for name, info in tool_info.items() %}
             <span class="tool-badge">{{ info.icon }} {{ info.label }}</span>
             {% endfor %}
         </div>
 
-        <!-- 채팅 영역 -->
+        <!-- 대화와 도구 실행 과정이 표시되는 영역 -->
         <div id="chat-area" class="chat-area">
             <div id="messages" class="messages">
                 <div class="system-msg">
@@ -30,7 +30,7 @@
             </div>
         </div>
 
-        <!-- 입력 영역 -->
+        <!-- 사용자 메시지 입력 영역 -->
         <div class="input-area">
             <input type="text" id="user-input" placeholder="메시지를 입력하세요..."
                    onkeydown="if(event.key === 'Enter') sendMessage()">
@@ -38,7 +38,7 @@
             <button id="reset-btn" onclick="resetChat()">초기화</button>
         </div>
 
-        <!-- 토큰 사용량 -->
+        <!-- 누적 토큰 사용량 표시 -->
         <div id="token-info" class="token-info"></div>
     </div>
 
@@ -55,7 +55,7 @@
             input.disabled = true;
             document.getElementById('send-btn').disabled = true;
 
-            // AI 응답 영역 생성
+            // 텍스트와 도구 실행 과정을 함께 담을 응답 영역을 만듭니다.
             const assistantDiv = appendMessage('assistant', '');
             const textSpan = assistantDiv.querySelector('.text');
 
@@ -82,7 +82,7 @@
                         if (!line.startsWith('data: ')) continue;
                         const data = JSON.parse(line.slice(6));
 
-                        // 도구 호출 표시
+                        // 모델이 요청한 도구 호출을 화면에 표시합니다.
                         if (data.tool_call) {
                             const tc = data.tool_call;
                             const toolDiv = document.createElement('div');
@@ -97,7 +97,7 @@
                             scrollToBottom();
                         }
 
-                        // 도구 결과 표시
+                        // 도구 실행 결과에 따라 상태를 완료/실패로 바꿉니다.
                         if (data.tool_result) {
                             const tr = data.tool_result;
                             const toolDivs = assistantDiv.querySelectorAll('.tool-step.tool-calling');
@@ -111,13 +111,13 @@
                             scrollToBottom();
                         }
 
-                        // 텍스트 응답
+                        // 최종 답변 텍스트를 이어 붙입니다.
                         if (data.text) {
                             textSpan.textContent += data.text;
                             scrollToBottom();
                         }
 
-                        // 완료
+                        // 응답이 끝나면 토큰 사용량을 표시합니다.
                         if (data.done) {
                             document.getElementById('token-info').textContent =
                                 `토큰 사용량 — 입력: ${data.input_tokens} / 출력: ${data.output_tokens}`;

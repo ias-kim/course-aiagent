@@ -1,12 +1,12 @@
 """
 Chapter 4-2: MCP 연결 절차 확인용 - 최소 서버
 
-이 서버는 연결 절차를 관찰하기 위한 '증명용' 최소 구성입니다.
+이 서버는 연결 절차를 관찰하기 위한 최소 구성입니다.
     - Resource 1개 (greeting://welcome)
     - Tool 1개 (echo)
     - Prompt 1개 (introduction)
 
-실행하지 말고 02_connection_client.py에서 자동으로 기동합니다.
+직접 실행하지 않아도 02_connection_client.py가 자식 프로세스로 자동 실행합니다.
 
 서버가 클라이언트에 노출하는 것:
     1) 서버 이름/버전 (initialize 응답)
@@ -16,12 +16,12 @@ Chapter 4-2: MCP 연결 절차 확인용 - 최소 서버
 
 from mcp.server.fastmcp import FastMCP
 
-# name은 initialize 시 클라이언트에게 전달됨
+# 서버 이름은 initialize 응답에서 클라이언트에게 전달됩니다.
 mcp = FastMCP("demo-server")
 
 
 # ============================================================
-# Resource: 환영 메시지
+# Resource: 클라이언트가 읽어 갈 수 있는 환영 메시지
 # ============================================================
 @mcp.resource("greeting://welcome")
 def welcome_message() -> str:
@@ -30,7 +30,7 @@ def welcome_message() -> str:
 
 
 # ============================================================
-# Tool: 에코 (입력을 그대로 반환)
+# Tool: 입력을 그대로 돌려주는 간단한 실행 기능
 # ============================================================
 @mcp.tool()
 def echo(message: str) -> str:
@@ -43,7 +43,7 @@ def echo(message: str) -> str:
 
 
 # ============================================================
-# Prompt: 자기소개 템플릿
+# Prompt: 재사용 가능한 자기소개 요청 템플릿
 # ============================================================
 @mcp.prompt()
 def introduction(name: str) -> str:

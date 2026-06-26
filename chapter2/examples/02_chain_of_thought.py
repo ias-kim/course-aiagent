@@ -2,7 +2,7 @@
 Chapter 2-2: Chain of Thought (CoT) — 단계적 추론
 
 CoT란?
-  LLM이 최종 답을 내기 전에 중간 추론 과정을 거치게 하는 기법입니다.
+  LLM이 바로 답만 내지 않고, 중간 풀이 과정을 거치게 하는 기법입니다.
   LLM은 다음 토큰을 예측하는 모델이므로, 중간 단계를 출력하면
   각 단계가 다음 단계의 맥락이 되어 더 정확한 결론에 도달합니다.
 
@@ -41,15 +41,15 @@ problem = """학교에 학생이 450명 있습니다.
 # ============================================================
 # 1부: 프롬프트 기반 CoT
 # ============================================================
-# 프롬프트만으로 LLM의 추론 과정을 제어하는 방법입니다.
-# 같은 문제라도 프롬프트에 따라 추론의 형식과 깊이가 달라집니다.
+# 프롬프트 문장만으로 풀이 방식과 답변 형식을 유도합니다.
+# 같은 문제라도 어떤 지시를 주느냐에 따라 출력이 크게 달라집니다.
 print("=" * 60)
 print("1부: 프롬프트 기반 CoT")
 print("=" * 60)
 
 # --- 자유 형식 CoT ---
-# "단계별로 풀어주세요"만 추가 — LLM이 자유롭게 추론 형식을 결정
-# 장점: 간단함 / 단점: 형식이 매번 달라질 수 있음
+# "단계별로 풀어주세요"만 추가하면 모델이 스스로 풀이 형식을 정합니다.
+# 간단하지만, 매번 형식이 조금씩 달라질 수 있습니다.
 print("\n--- 자유 형식 CoT ---")
 response = client.messages.create(
     model=MODEL,
@@ -63,8 +63,8 @@ print(response.content[0].text)
 print(f"\n  [토큰: 입력 {response.usage.input_tokens} / 출력 {response.usage.output_tokens}]")
 
 # --- 구조 지정 CoT ---
-# System Prompt로 추론의 구조를 명시적으로 지정
-# 장점: 출력 형식이 일관됨, 파싱이 쉬움 / 단점: 프롬프트가 길어짐
+# System Prompt로 풀이 구조를 미리 정해 두면 출력이 더 일정해집니다.
+# 대신 프롬프트가 길어지고, 너무 빡빡하면 답변이 부자연스러울 수 있습니다.
 print("\n--- 구조 지정 CoT ---")
 response = client.messages.create(
     model=MODEL,
@@ -82,7 +82,7 @@ print(f"\n  [토큰: 입력 {response.usage.input_tokens} / 출력 {response.usa
 # ============================================================
 # 2부: Extended Thinking (Reasoning Model)
 # ============================================================
-# Claude에서는 thinking 파라미터를 활성화하면 Reasoning Model로 동작합니다.
+# Claude에서는 thinking 파라미터를 켜면 모델이 별도의 추론 단계를 사용합니다.
 # 같은 모델(claude-sonnet-4)이지만 동작 방식이 달라집니다:
 #
 #   프롬프트 CoT: [프롬프트] → [추론 + 답이 섞인 응답]
@@ -114,7 +114,7 @@ response = client.messages.create(
     messages=[{"role": "user", "content": problem}],
 )
 
-# 응답 구조: content에 thinking 블록과 text 블록이 분리되어 옴
+# 응답 content에는 thinking 블록과 text 블록이 나뉘어 들어옵니다.
 for block in response.content:
     if block.type == "thinking":
         print(f"[thinking 블록 — 내부 추론 과정]")
@@ -124,14 +124,14 @@ for block in response.content:
         print(f"{block.text}")
 
 print(f"\n  [토큰: 입력 {response.usage.input_tokens} / 출력 {response.usage.output_tokens}]")
-# → 1부와 비교: 프롬프트에 "단계별로"를 쓰지 않았는데도 깊이 추론함
-# → 추론 과정(thinking)과 결론(text)이 자동으로 분리됨
+# → 프롬프트에 "단계별로"라고 쓰지 않아도 모델이 충분히 생각한 뒤 답합니다.
+# → 추론 과정(thinking)과 최종 응답(text)을 따로 볼 수 있습니다.
 
 
 # ============================================================
 # 3부: Agent 실전 패턴 — 추론과 결과를 JSON으로 분리
 # ============================================================
-# Agent가 의사결정을 할 때 "왜 그렇게 판단했는지"를 추적할 수 있어야 합니다.
+# Agent가 결정을 내릴 때는 "왜 그렇게 판단했는지"를 나중에 확인할 수 있어야 합니다.
 # JSON에 reasoning 필드를 포함시키면:
 #   - reasoning → 로깅/디버깅용 (판단 근거 추적)
 #   - 나머지 필드 → 코드에서 활용 (분기 처리, 라우팅 등)
@@ -166,7 +166,7 @@ response = client.messages.create(
 raw = response.content[0].text
 print(f"LLM 원본 응답:\n{raw}\n")
 
-# LLM이 ```json ... ``` 코드블록으로 감쌀 수 있으므로 정리
+# 모델이 JSON을 마크다운 코드 블록으로 감싸는 경우가 있어 한 번 정리합니다.
 cleaned = raw.strip()
 if cleaned.startswith("```"):
     cleaned = cleaned.split("\n", 1)[1]
@@ -174,7 +174,7 @@ if cleaned.startswith("```"):
 
 result = json.loads(cleaned)
 
-# Agent 코드에서의 활용 예시
+# Agent 코드에서는 reasoning은 로그로, 나머지 필드는 실제 분기 처리에 쓸 수 있습니다.
 print("[로깅용] 추론 과정:", result["reasoning"])
 print("[코드용] 분류:", result["category"])
 print("[코드용] 우선순위:", result["priority"])

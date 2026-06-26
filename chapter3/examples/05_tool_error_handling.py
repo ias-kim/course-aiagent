@@ -1,13 +1,13 @@
 """
 Chapter 3-5: 도구 에러 처리
 
-도구는 언제든 실패할 수 있습니다.
+도구 실행은 외부 API, 입력값, 권한 문제 때문에 언제든 실패할 수 있습니다.
 - API 서버 다운
 - 잘못된 입력값
 - 타임아웃
 - 권한 부족
 
-Agent는 도구 실패 시:
+Agent는 도구 실패 시 다음 두 가지를 해야 합니다.
     1) 에러 정보를 LLM에게 알려주고
     2) LLM이 대안을 찾거나 사용자에게 안내하도록 해야 합니다.
 
@@ -26,7 +26,7 @@ MODEL = "claude-sonnet-4-20250514"
 
 
 # ============================================================
-# 도구 정의
+# 에러 처리를 실험할 도구 정의입니다.
 # ============================================================
 tools = [
     {
@@ -58,7 +58,7 @@ tools = [
 
 
 # ============================================================
-# 1부: 에러를 발생시키는 도구 구현
+# 1부: 일부러 성공과 실패가 모두 나오도록 도구를 구현합니다.
 # ============================================================
 print("=" * 60)
 print("1부: 도구 에러 시뮬레이션")
@@ -67,14 +67,14 @@ print("=" * 60)
 
 def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
     """
-    도구 실행. 결과와 에러 여부를 함께 반환합니다.
+    도구 실행 결과와 에러 여부를 함께 반환합니다.
 
     Returns:
         (결과 문자열, 에러 여부)
     """
     if name == "get_stock_price":
         symbol = tool_input["symbol"]
-        # 일부 종목만 지원 (나머지는 에러)
+        # 일부 종목만 지원하고, 나머지는 에러로 처리합니다.
         prices = {
             "AAPL": {"price": 178.50, "change": "+1.2%"},
             "005930": {"price": 72000, "change": "-0.5%"},
@@ -82,7 +82,7 @@ def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
         if symbol in prices:
             return json.dumps(prices[symbol], ensure_ascii=False), False
         else:
-            # 에러 케이스: 종목을 찾을 수 없음
+            # 에러 케이스도 문자열로 구체적인 원인을 알려줍니다.
             return f"오류: 종목 코드 '{symbol}'을 찾을 수 없습니다. 유효한 종목 코드를 확인해주세요.", True
 
     elif name == "get_company_info":
@@ -100,7 +100,7 @@ def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
 
 
 # ============================================================
-# 2부: 에러를 처리하는 Agent 루프
+# 2부: is_error를 포함해 에러를 모델에게 알려주는 Agent 루프입니다.
 # ============================================================
 print()
 print("=" * 60)
@@ -109,7 +109,7 @@ print("=" * 60)
 
 
 def agent_loop(user_message: str, max_iterations: int = 10) -> str:
-    """에러 처리가 포함된 Agent 루프"""
+    """도구 성공/실패를 모두 처리하는 Agent 루프입니다."""
     messages = [{"role": "user", "content": user_message}]
     iteration = 0
 
@@ -135,7 +135,7 @@ def agent_loop(user_message: str, max_iterations: int = 10) -> str:
                 if block.type == "tool_use":
                     print(f"  [도구] {block.name}({json.dumps(block.input, ensure_ascii=False)})")
 
-                    # 도구 실행 (에러 여부도 함께 반환)
+                    # 도구 실행 결과와 에러 여부를 함께 받습니다.
                     result, is_error = execute_tool(block.name, block.input)
 
                     if is_error:
@@ -147,7 +147,7 @@ def agent_loop(user_message: str, max_iterations: int = 10) -> str:
                         "type": "tool_result",
                         "tool_use_id": block.id,
                         "content": result,
-                        "is_error": is_error,  # ← 핵심: LLM에게 에러임을 알림
+                        "is_error": is_error,  # 핵심: 모델에게 이 결과가 실패인지 알려줍니다.
                     })
 
             messages.append({"role": "user", "content": tool_results})
@@ -159,7 +159,7 @@ def agent_loop(user_message: str, max_iterations: int = 10) -> str:
 # 테스트
 # ============================================================
 
-# --- 테스트 1: 정상 호출 ---
+# --- 테스트 1: 정상적으로 결과를 받는 경우 ---
 print("\n" + "=" * 60)
 print("테스트 1: 정상 호출")
 print("=" * 60)
@@ -167,23 +167,23 @@ print("질문: 애플(AAPL) 주가 알려줘")
 result = agent_loop("애플(AAPL) 주가 알려줘")
 print(f"\n최종 답변:\n{result}")
 
-# --- 테스트 2: 에러 발생 → LLM이 사용자에게 안내 ---
+# --- 테스트 2: 도구가 실패하고 모델이 사용자에게 안내하는 경우 ---
 print("\n" + "=" * 60)
 print("테스트 2: 존재하지 않는 종목")
 print("=" * 60)
 print("질문: XYZABC 주가 알려줘")
 result = agent_loop("XYZABC 주가 알려줘")
 print(f"\n최종 답변:\n{result}")
-# → LLM이 "종목을 찾을 수 없다"는 에러를 인식하고 사용자에게 안내
+# → 모델이 "종목을 찾을 수 없다"는 에러를 보고 사용자에게 설명합니다.
 
-# --- 테스트 3: 일부 성공 + 일부 실패 ---
+# --- 테스트 3: 일부 도구 호출은 성공하고 일부는 실패하는 경우 ---
 print("\n" + "=" * 60)
 print("테스트 3: 삼성전자와 알 수 없는 종목 비교")
 print("=" * 60)
 print("질문: 삼성전자(005930)와 LG전자(066570) 주가를 비교해줘")
 result = agent_loop("삼성전자(005930)와 LG전자(066570) 주가를 비교해줘")
 print(f"\n최종 답변:\n{result}")
-# → 삼성전자는 성공, LG전자는 에러 → LLM이 부분 결과로 답변
+# → 모델은 성공한 정보와 실패한 정보를 구분해 부분 결과로 답변합니다.
 
 
 # ============================================================

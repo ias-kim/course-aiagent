@@ -1,8 +1,8 @@
 """
 Chapter 1-7: 에러 핸들링과 재시도
 
-API 호출은 언제든 실패할 수 있습니다.
-Agent가 안정적으로 동작하려면 에러를 적절히 처리해야 합니다.
+API 호출은 네트워크, 인증, 사용량 제한 등으로 언제든 실패할 수 있습니다.
+Agent를 실제로 쓰려면 실패 상황도 정상 흐름의 일부로 다뤄야 합니다.
 - 주요 에러 타입과 대처법
 - 재시도 로직 (Exponential Backoff)
 - Agent 루프에 에러 핸들링 적용
@@ -25,22 +25,22 @@ load_dotenv()
 client = Anthropic()
 MODEL = "claude-sonnet-4-20250514"
 
-# Agent 품질 = 모델 성능 × 도구 설계 × 검증 × 재시도 × 관측 가능성
+# Agent 품질은 모델 성능뿐 아니라 검증, 재시도, 로그 같은 운영 요소에도 달려 있습니다.
 # ============================================================
 # 1부: 주요 에러 타입 알아보기
 # ============================================================
-# API 호출 시 발생할 수 있는 에러들:
+# API 호출에서 자주 만나는 에러들:
 #
 #   AuthenticationError (401)
 #     - API 키가 없거나 잘못된 경우
 #     - 해결: .env 파일의 ANTHROPIC_API_KEY 확인
 #
 #   BadRequestError (400)
-#     - 잘못된 파라미터 (예: 존재하지 않는 모델명, 빈 messages)
+#     - 요청 형식이나 파라미터가 잘못된 경우 (예: 빈 messages)
 #     - 해결: 요청 파라미터 수정
 #
 #   RateLimitError (429)
-#     - 너무 많은 요청을 보냈을 때 (분당/일당 제한 초과)
+#     - 짧은 시간에 너무 많은 요청을 보냈을 때
 #     - 해결: 잠시 대기 후 재시도
 #
 #   APITimeoutError
@@ -65,7 +65,7 @@ try:
         messages=[{"role": "user", "content": "안녕"}],
     )
 except NotFoundError as e:
-    # 존재하지 않는 모델명은 404 NotFoundError를 발생시킴
+# 존재하지 않는 모델명은 404 NotFoundError로 올 수 있습니다.
     print(f"[NotFoundError] 상태 코드: {e.status_code}")
     print(f"[NotFoundError] 메시지: {e.message}")
 except BadRequestError as e:
@@ -102,8 +102,8 @@ except AuthenticationError as e:
 # ============================================================
 # 2부: 재시도 로직 (Exponential Backoff)
 # ============================================================
-# 일시적 에러(Rate Limit, 서버 오류)는 재시도하면 성공할 수 있습니다.
-# 핵심 원칙: 재시도 간격을 점점 늘려서 서버에 부담을 줄이기
+# 일시적인 에러는 잠깐 기다렸다가 다시 시도하면 성공할 때가 많습니다.
+# 이때 재시도 간격을 점점 늘리면 서버와 우리 앱 모두에 부담이 줄어듭니다.
 #
 #   1번째 재시도: 1초 대기
 #   2번째 재시도: 2초 대기
@@ -117,7 +117,7 @@ print("=" * 60)
 
 def call_with_retry(messages, max_retries=3, initial_delay=1.0):
     """
-    일시적 에러 발생 시 재시도하는 API 호출 함수.
+    일시적인 에러가 나면 잠시 기다렸다가 다시 호출하는 함수입니다.
 
     Args:
         messages: API에 보낼 메시지 리스트
@@ -129,7 +129,7 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
     """
     delay = initial_delay
 
-    for attempt in range(max_retries + 1):  # 최초 1회 + 재시도 횟수
+    for attempt in range(max_retries + 1):  # 처음 호출 1회 + 재시도 횟수만큼 반복합니다.
         try:
             response = client.messages.create(
                 model=MODEL,
@@ -139,17 +139,17 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
             return response.content[0].text
 
         except RateLimitError as e:
-            # 429: 요청 제한 초과 → 재시도 가능
+            # 429: 요청 제한 초과. 잠시 기다리면 다시 가능할 수 있습니다.
             if attempt < max_retries:
                 print(f"  [Rate Limit] {delay}초 후 재시도... ({attempt + 1}/{max_retries})")
                 time.sleep(delay)
-                delay *= 2  # 대기 시간 2배로 증가
+                delay *= 2  # 실패가 반복될수록 대기 시간을 2배로 늘립니다.
             else:
                 print(f"  [Rate Limit] 최대 재시도 횟수 초과!")
                 return None
 
         except APITimeoutError as e:
-            # 타임아웃 → 재시도 가능
+            # 타임아웃도 일시적인 문제일 수 있으므로 재시도합니다.
             if attempt < max_retries:
                 print(f"  [Timeout] {delay}초 후 재시도... ({attempt + 1}/{max_retries})")
                 time.sleep(delay)
@@ -159,23 +159,23 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
                 return None
 
         except APIError as e:
-            # 500, 529 등 서버 에러 → 재시도 가능
+            # 500, 529 같은 서버 쪽 일시 오류는 재시도 대상입니다.
             if e.status_code in (500, 529) and attempt < max_retries:
                 print(f"  [서버 에러 {e.status_code}] {delay}초 후 재시도... ({attempt + 1}/{max_retries})")
                 time.sleep(delay)
                 delay *= 2
             else:
-                # 재시도 불가능한 에러
+                # 그 외 APIError는 원인을 확인해야 하므로 여기서 멈춥니다.
                 print(f"  [APIError] 상태 코드: {e.status_code}, 메시지: {e.message}")
                 return None
 
         except AuthenticationError:
-            # 인증 에러는 재시도해도 소용없음
+            # API 키 문제는 기다려도 해결되지 않으므로 재시도하지 않습니다.
             print("  [인증 실패] API 키를 확인하세요. 재시도하지 않습니다.")
             return None
 
         except BadRequestError as e:
-            # 잘못된 요청은 재시도해도 소용없음
+            # 요청 자체가 잘못된 경우도 코드를 고쳐야 하므로 재시도하지 않습니다.
             print(f"  [잘못된 요청] {e.message}. 재시도하지 않습니다.")
             return None
 
@@ -193,7 +193,7 @@ print(f"응답: {result}")
 # ============================================================
 # 3부: Agent 루프에 에러 핸들링 적용
 # ============================================================
-# Chapter 1-5의 Agent 루프에 에러 처리를 추가한 버전
+# Chapter 1-5의 Agent 루프에 재시도와 실패 처리를 더한 버전입니다.
 print()
 print("=" * 60)
 print("3부: 에러 핸들링이 적용된 Agent 루프")
@@ -208,22 +208,22 @@ while True:
         print("대화를 종료합니다.")
         break
 
-    # 빈 입력 처리
+    # 빈 입력은 API에 보내지 않고 바로 무시합니다.
     if not user_input.strip():
         print("  (빈 메시지는 무시됩니다)")
         continue
 
     conversation_history.append({"role": "user", "content": user_input})
 
-    # 재시도 로직이 포함된 호출
+    # API 호출은 재시도 로직이 들어 있는 helper를 통해 수행합니다.
     result = call_with_retry(messages=conversation_history)
 
     if result is not None:
-        # 성공: 응답을 히스토리에 추가
+        # 성공한 응답만 히스토리에 남깁니다.
         conversation_history.append({"role": "assistant", "content": result})
         print(f"Claude: {result}")
     else:
-        # 실패: 사용자 메시지를 히스토리에서 제거 (실패한 요청은 없던 것으로)
+        # 실패한 요청은 대화 흐름을 망치지 않도록 히스토리에서 제거합니다.
         conversation_history.pop()
         print("  [에러] 응답을 받지 못했습니다. 다시 시도해주세요.")
 

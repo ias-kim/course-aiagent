@@ -1,9 +1,9 @@
 """
 Chapter 1-8: 구조화된 출력 (Structured Output)
 
-LLM의 응답은 기본적으로 자연어 텍스트입니다.
-하지만 Agent는 응답을 프로그래밍적으로 처리해야 합니다.
-→ LLM에게 JSON 등 구조화된 형식으로 응답하도록 유도하는 기법을 배웁니다.
+LLM의 기본 응답은 사람이 읽기 좋은 자연어입니다.
+하지만 Agent 코드는 응답에서 값을 꺼내 조건문, 저장, 도구 호출에 사용해야 합니다.
+그래서 JSON처럼 코드가 읽기 쉬운 형식으로 답하게 만드는 방법을 배웁니다.
 
 왜 중요한가?
 - Agent = LLM + 코드. 코드가 응답을 파싱하려면 구조가 필요합니다.
@@ -24,7 +24,7 @@ MODEL = "claude-sonnet-4-20250514"
 # ============================================================
 # 1부: System Prompt로 JSON 응답 유도하기
 # ============================================================
-# 핵심 기법: System Prompt에 출력 형식을 명시적으로 지정
+# 핵심은 System Prompt에 원하는 출력 형식을 아주 분명하게 적는 것입니다.
 #
 #   1) 원하는 JSON 스키마를 예시로 보여준다
 #   2) "반드시 JSON만 출력하라"고 명시한다
@@ -55,7 +55,7 @@ JSON 외에 다른 텍스트는 절대 포함하지 마세요.
 raw_text = response.content[0].text
 print(f"LLM 원본 응답: {raw_text}")
 
-# JSON 파싱
+# 문자열로 받은 JSON을 Python 객체로 파싱합니다.
 data = json.loads(raw_text)
 print(f"파싱 결과: 이름={data['name']}, 나이={data['age']}, 직업={data['job']}")
 print(f"타입 확인: name={type(data['name']).__name__}, age={type(data['age']).__name__}")
@@ -97,8 +97,8 @@ for item in results:
 # ============================================================
 # 2부: JSON 파싱 실패 처리와 재시도
 # ============================================================
-# LLM은 확률적 모델이므로, 항상 완벽한 JSON을 반환하지는 않습니다.
-# Agent는 파싱 실패에 대비해야 합니다.
+# LLM이 항상 완벽한 JSON만 반환한다고 가정하면 위험합니다.
+# Agent 코드는 파싱 실패에 대비해야 안정적으로 동작합니다.
 #
 #   실패 원인 예시:
 #   - JSON 앞뒤에 ```json ... ``` 마크다운이 붙는 경우
@@ -112,7 +112,7 @@ print("=" * 60)
 
 def parse_json_response(text):
     """
-    LLM 응답에서 JSON을 안전하게 추출합니다.
+    LLM 응답에서 JSON 부분을 최대한 안전하게 추출합니다.
 
     처리하는 케이스:
     1. 순수 JSON 문자열
@@ -121,15 +121,15 @@ def parse_json_response(text):
     """
     text = text.strip()
 
-    # 1) 그대로 파싱 시도
+    # 1) 가장 먼저, 응답 전체가 JSON인지 그대로 시도합니다.
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # 2) 마크다운 코드 블록 제거 후 시도
+    # 2) ```json 코드 블록으로 감싼 경우에는 안쪽 내용만 꺼내 봅니다.
     if "```" in text:
-        # ```json ... ``` 또는 ``` ... ``` 패턴 처리
+        # ```json ... ``` 또는 ``` ... ``` 패턴을 처리합니다.
         lines = text.split("\n")
         json_lines = []
         in_block = False
@@ -144,7 +144,7 @@ def parse_json_response(text):
         except json.JSONDecodeError:
             pass
 
-    # 3) 첫 번째 { 또는 [ 부터 마지막 } 또는 ] 까지 추출
+    # 3) 앞뒤 설명이 섞인 경우 JSON처럼 보이는 구간만 잘라 봅니다.
     for start_char, end_char in [("{", "}"), ("[", "]")]:
         start = text.find(start_char)
         end = text.rfind(end_char)
@@ -154,11 +154,11 @@ def parse_json_response(text):
             except json.JSONDecodeError:
                 pass
 
-    # 모든 시도 실패
+    # 여기까지 왔다면 자동 복구가 어려운 응답입니다.
     raise ValueError(f"JSON 파싱 실패: {text[:100]}...")
 
 
-# 파싱 함수 테스트
+# 파싱 함수가 흔한 응답 형태를 처리하는지 확인합니다.
 test_cases = [
     '{"name": "테스트"}',                           # 정상 JSON
     '```json\n{"name": "테스트"}\n```',              # 마크다운 블록
@@ -176,8 +176,7 @@ for i, test in enumerate(test_cases):
 # ============================================================
 # 3부: 재시도 패턴 - 파싱 실패 시 LLM에게 다시 요청
 # ============================================================
-# 파싱이 실패하면 LLM에게 "JSON 형식이 잘못되었다"고 알려주고
-# 다시 시도하게 합니다.
+# 파싱이 실패하면 이전 응답을 보여주며 "JSON 형식으로 다시 답해 달라"고 요청합니다.
 print()
 print("=" * 60)
 print("3부: 파싱 실패 시 재시도 패턴")
@@ -186,8 +185,7 @@ print("=" * 60)
 
 def get_structured_response(prompt, system_prompt, max_retries=2):
     """
-    구조화된 JSON 응답을 안정적으로 받아오는 함수.
-    파싱 실패 시 LLM에게 피드백을 주고 재시도합니다.
+    구조화된 JSON 응답을 받아오되, 파싱 실패 시 피드백을 주고 재시도합니다.
     """
     messages = [{"role": "user", "content": prompt}]
 
@@ -205,7 +203,7 @@ def get_structured_response(prompt, system_prompt, max_retries=2):
         except ValueError:
             if attempt < max_retries:
                 print(f"  [파싱 실패] 재시도 {attempt + 1}/{max_retries}")
-                # LLM에게 피드백: 이전 응답과 수정 요청을 히스토리에 추가
+                # 이전 응답과 수정 요청을 히스토리에 넣어 모델이 무엇을 고칠지 알게 합니다.
                 messages.append({"role": "assistant", "content": raw_text})
                 messages.append({
                     "role": "user",

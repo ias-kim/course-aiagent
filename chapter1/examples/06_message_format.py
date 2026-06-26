@@ -1,7 +1,7 @@
 """
 Chapter 1-6: 메시지 포맷 들여다보기
 
-Agent와 LLM 사이에 오가는 메시지의 실제 구조를 확인합니다.
+Agent와 LLM 사이에 오가는 메시지의 실제 모양을 확인합니다.
 - 우리가 보내는 요청(Request)의 정확한 형태
 - LLM이 돌려주는 응답(Response)의 정확한 형태
 - 멀티턴 대화에서 메시지가 어떻게 쌓이는지
@@ -20,13 +20,13 @@ MODEL = "claude-sonnet-4-20250514"
 # ============================================================
 # 1부: 요청(Request) 메시지 포맷
 # ============================================================
-# API에 보내는 messages는 딕셔너리의 리스트입니다.
-# 각 메시지는 반드시 "role"과 "content"를 가져야 합니다.
+# API에 보내는 messages는 딕셔너리로 된 리스트입니다.
+# 각 메시지에는 누가 말했는지(role)와 무엇을 말했는지(content)가 들어갑니다.
 print("=" * 60)
 print("1부: 요청(Request) 메시지 포맷")
 print("=" * 60)
 
-# 가장 단순한 형태: 단일 user 메시지
+# 가장 단순한 형태는 user 메시지 하나만 보내는 것입니다.
 messages = [
     {"role": "user", "content": "대한민국의 수도는?"}
 ]
@@ -46,13 +46,13 @@ print(response.content[0].text)
 # ============================================================
 # 2부: 응답(Response) 객체 전체 구조
 # ============================================================
-# LLM의 응답은 단순 문자열이 아니라 구조화된 객체입니다.
+# LLM의 응답도 문자열 하나가 아니라 여러 정보를 담은 객체입니다.
 print()
 print("=" * 60)
 print("2부: 응답(Response) 객체 전체 구조")
 print("=" * 60)
 
-# response 객체를 딕셔너리로 변환하여 전체 구조 확인
+# response 객체를 딕셔너리로 바꿔 전체 구조를 눈으로 확인합니다.
 response_dict = json.loads(response.to_json())
 print(json.dumps(response_dict, ensure_ascii=False, indent=2))
 
@@ -79,8 +79,8 @@ print(json.dumps(response_dict, ensure_ascii=False, indent=2))
 # ============================================================
 # 3부: 멀티턴 대화의 메시지 흐름
 # ============================================================
-# 대화가 이어지면 messages 리스트에 user/assistant가 번갈아 쌓입니다.
-# 매 요청마다 전체 히스토리를 보내야 LLM이 맥락을 이해합니다.
+# 대화가 이어질수록 messages 리스트에는 user와 assistant 메시지가 차례대로 쌓입니다.
+# 매 요청마다 이 전체 히스토리를 보내야 모델이 맥락을 따라올 수 있습니다.
 print()
 print("=" * 60)
 print("3부: 멀티턴 대화의 메시지 흐름")
@@ -114,7 +114,7 @@ conversation.append({"role": "user", "content": user_msg_2})
 print(f"\n--- 턴 2: 요청 ---")
 print(f"[보내는 messages] ({len(conversation)}개)")
 print(json.dumps(conversation, ensure_ascii=False, indent=2))
-# ↑ 이전 대화(턴 1)가 모두 포함되어 있음에 주목!
+# ↑ 턴 1의 대화가 함께 들어가 있으므로 모델이 이름을 참고할 수 있습니다.
 
 response2 = client.messages.create(
     model=MODEL,
@@ -134,7 +134,7 @@ conversation.append({"role": "user", "content": user_msg_3})
 print(f"\n--- 턴 3: 요청 ---")
 print(f"[보내는 messages] ({len(conversation)}개)")
 print(json.dumps(conversation, ensure_ascii=False, indent=2))
-# ↑ 턴 1, 2의 대화가 모두 누적되어 있음!
+# ↑ 턴 1, 2의 대화가 모두 누적되어 있는지 확인하세요.
 
 response3 = client.messages.create(
     model=MODEL,

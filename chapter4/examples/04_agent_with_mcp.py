@@ -2,7 +2,7 @@
 Chapter 4-4: MCP 3대 구성요소 + LLM 결합 Agent
 
 03_components_server.py의 Resource/Tool/Prompt를
-실제 Claude(LLM)와 결합하여 각 제어 방식이 어떻게 동작하는지 체험합니다.
+실제 Claude(LLM)와 연결해 각 제어 방식이 어떻게 동작하는지 체험합니다.
 
 구현하는 3가지 시나리오:
 
@@ -44,14 +44,14 @@ SERVER_PATH = str(Path(__file__).parent / "03_components_server.py")
 
 
 # ============================================================
-# 유틸: @참조 감지 & 슬래시 명령 파싱
+# 유틸: @리소스 참조와 /프롬프트 명령을 감지합니다.
 # ============================================================
 RESOURCE_REF_PATTERN = re.compile(r"@(\S+://\S+)")
 SLASH_PATTERN = re.compile(r"^/(\w+)(?:\s+(.*))?$")
 
 
 async def resolve_resources(session: ClientSession, user_input: str) -> str:
-    """사용자 입력에서 @uri 패턴을 찾아 리소스를 읽고 컨텍스트에 주입."""
+    """사용자 입력의 @uri 참조를 찾아 Resource를 읽고, 그 내용을 질문 앞에 붙입니다."""
     matches = RESOURCE_REF_PATTERN.findall(user_input)
     if not matches:
         return user_input
@@ -72,16 +72,17 @@ async def resolve_resources(session: ClientSession, user_input: str) -> str:
 
 
 async def parse_slash_command(session: ClientSession, user_input: str):
-    """/<prompt_name> <arg> 형식을 파싱하여 서버의 Prompt를 가져옴."""
+    """/<prompt_name> <arg> 형식을 파싱해 서버의 Prompt를 가져옵니다."""
     match = SLASH_PATTERN.match(user_input.strip())
     if not match:
         return None
     name, arg = match.group(1), match.group(2) or ""
     print(f"  [Host] 슬래시 명령 감지 → get_prompt({name!r}, topic={arg!r})")
     try:
-        # 단순화: 첫 파라미터 이름을 topic으로 가정 (실제로는 arguments 스키마 조회 가능)
+        # 실습을 단순하게 하려고 첫 파라미터 이름을 topic이라고 가정합니다.
+        # 실제로는 Prompt의 arguments 스키마를 조회해 맞춰 넣을 수 있습니다.
         result = await session.get_prompt(name, {"topic": arg} if arg else {})
-        # Prompt가 반환한 첫 메시지를 사용자 메시지로 사용
+        # Prompt가 반환한 첫 메시지를 이번 사용자 요청처럼 사용합니다.
         first = result.messages[0]
         return first.content.text if hasattr(first.content, "text") else str(first.content)
     except Exception as e:
@@ -90,7 +91,7 @@ async def parse_slash_command(session: ClientSession, user_input: str):
 
 
 async def run_agent_turn(session: ClientSession, claude_tools, conversation, user_text: str):
-    """한 턴의 Agent 루프 실행 (tool_use 반복 처리)."""
+    """한 번의 사용자 입력에 대해 tool_use가 끝날 때까지 Agent 루프를 실행합니다."""
     conversation.append({"role": "user", "content": user_text})
 
     for _ in range(6):
@@ -115,7 +116,7 @@ async def run_agent_turn(session: ClientSession, claude_tools, conversation, use
                 if block.type == "tool_use":
                     args_str = json.dumps(block.input, ensure_ascii=False)
                     print(f"\n  [LLM 판단] 도구 호출 요청: {block.name}({args_str})")
-                    # Host가 여기서 승인 로직을 수행할 수 있음 (여기서는 자동 허용)
+                    # 실제 서비스라면 여기서 승인/권한 검사를 넣습니다. 실습에서는 자동 허용합니다.
                     print(f"  [Host] 승인 → 실행")
                     result = await session.call_tool(block.name, arguments=block.input)
                     text = result.content[0].text if result.content else ""
@@ -130,7 +131,7 @@ async def run_agent_turn(session: ClientSession, claude_tools, conversation, use
 
 
 # ============================================================
-# 메인
+# 메인 실행부입니다.
 # ============================================================
 async def main():
     print("=" * 70)
@@ -150,7 +151,7 @@ async def main():
         async with ClientSession(read, write) as session:
             await session.initialize()
 
-            # Tool 목록을 Claude API 형식으로 변환
+            # MCP 서버에서 발견한 Tool 목록을 Claude API의 tools 형식으로 변환합니다.
             tools_result = await session.list_tools()
             claude_tools = [
                 {
@@ -162,12 +163,12 @@ async def main():
             ]
             print(f"  서버 도구: {', '.join(t['name'] for t in claude_tools)}")
 
-            # 사용 가능한 Prompt 목록
+            # 서버가 제공하는 Prompt 목록을 확인합니다.
             prompts_result = await session.list_prompts()
             prompt_names = [p.name for p in prompts_result.prompts]
             print(f"  서버 Prompt: {', '.join(prompt_names)}")
 
-            # Resource 목록
+            # 고정 Resource와 URI 템플릿 Resource를 함께 보여줍니다.
             res_result = await session.list_resources()
             templates = await session.list_resource_templates()
             all_uris = [r.uri for r in res_result.resources] + [
@@ -187,19 +188,19 @@ async def main():
                     print("종료합니다.")
                     break
 
-                # 1) 슬래시 명령 우선 처리 (User-controlled Prompt)
+                # 1) 슬래시 명령이면 사용자가 선택한 Prompt를 먼저 적용합니다.
                 slash_text = await parse_slash_command(session, user_input)
                 if slash_text is not None:
                     await run_agent_turn(session, claude_tools, conversation, slash_text)
                     continue
 
-                # 2) @참조가 있으면 Resource 주입 (Application-controlled)
+                # 2) @참조가 있으면 Host가 Resource를 읽어 컨텍스트에 넣습니다.
                 if RESOURCE_REF_PATTERN.search(user_input):
                     user_text = await resolve_resources(session, user_input)
                     await run_agent_turn(session, claude_tools, conversation, user_text)
                     continue
 
-                # 3) 그 외 일반 대화 (Model-controlled Tools 자율 호출)
+                # 3) 일반 대화는 모델이 필요할 때 Tool 호출을 요청합니다.
                 await run_agent_turn(session, claude_tools, conversation, user_input)
 
 

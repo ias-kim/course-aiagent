@@ -1,12 +1,12 @@
 """
 실습 P01: 멀티툴 어시스턴트
 
-Tool Use의 핵심 개념을 웹 UI로 체험합니다.
+Tool Use의 핵심 흐름을 웹 UI에서 눈으로 확인하는 실습입니다.
 
 학습 목표:
     - 도구 정의(JSON Schema)와 LLM의 도구 선택 과정을 이해한다
     - Agent 루프(tool_use → tool_result → 반복)를 실제 앱에서 구현한다
-    - 도구 호출 과정을 UI에 시각화하여 "LLM은 요청, Agent가 실행"을 체감한다
+    - 도구 호출 과정을 UI에 시각화하여 "LLM은 요청하고 Agent가 실행한다"를 체감한다
     - 도구 에러 시 is_error 처리 패턴을 적용한다
 
 활용 예제:
@@ -35,7 +35,7 @@ MODEL = "claude-sonnet-4-20250514"
 # 도구 정의
 # ============================================================
 # 각 도구는 JSON Schema로 정의합니다.
-# description이 명확할수록 LLM이 적절한 도구를 선택합니다.
+# description은 모델이 도구 선택을 할 때 읽는 안내문이므로 구체적으로 작성합니다.
 TOOLS = [
     {
         "name": "get_weather",
@@ -107,8 +107,8 @@ TOOLS = [
 # ============================================================
 # 도구 실행 함수
 # ============================================================
-# 실제 서비스에서는 외부 API를 호출하지만, 학습용으로 시뮬레이션합니다.
-# 반환값: (결과 문자열, 에러 여부)
+# 실제 서비스에서는 외부 API를 호출하겠지만, 여기서는 학습용 데이터로 시뮬레이션합니다.
+# 반환값은 (결과 문자열, 에러 여부)입니다.
 
 def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
     """도구를 실행하고 (결과, 에러여부)를 반환합니다."""
@@ -130,7 +130,7 @@ def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
     elif name == "calculator":
         expression = tool_input["expression"]
         try:
-            # 주의: eval은 보안 위험이 있으므로 학습용으로만 사용
+            # 주의: eval은 보안 위험이 있으므로 실제 서비스에서는 사용하지 않습니다.
             result = eval(expression)
             return str(result), False
         except Exception as e:
@@ -177,7 +177,7 @@ def execute_tool(name: str, tool_input: dict) -> tuple[str, bool]:
     return f"알 수 없는 도구: {name}", True
 
 
-# UI에 표시할 도구 정보
+# UI에 표시할 도구 아이콘과 이름입니다. Claude에 전달되는 도구 정의와는 별도입니다.
 TOOL_INFO = {
     "get_weather": {"icon": "🌤️", "label": "날씨 조회"},
     "calculator": {"icon": "🧮", "label": "계산기"},
@@ -186,12 +186,12 @@ TOOL_INFO = {
 }
 
 
-# 세션별 대화 히스토리
+# 브라우저 세션별 대화 히스토리입니다.
 conversations: dict[str, list] = {}
 
 
 # ============================================================
-# 라우트
+# Flask 라우트입니다.
 # ============================================================
 @app.route("/")
 def index():
@@ -201,7 +201,7 @@ def index():
 @app.route("/chat", methods=["POST"])
 def chat():
     """
-    Agent 루프가 포함된 채팅 API.
+    Agent 루프가 포함된 채팅 API입니다.
     도구 호출 과정을 SSE로 실시간 전달합니다.
 
     SSE 이벤트 종류:
@@ -226,7 +226,7 @@ def chat():
         total_output_tokens = 0
 
         for iteration in range(max_iterations):
-            # LLM 호출 (도구 포함)
+            # 현재 히스토리와 도구 목록을 함께 보내 모델의 다음 행동을 받습니다.
             response = client.messages.create(
                 model=MODEL,
                 max_tokens=1024,
@@ -238,7 +238,7 @@ def chat():
             total_input_tokens += response.usage.input_tokens
             total_output_tokens += response.usage.output_tokens
 
-            # 최종 답변 (도구 호출 없음)
+            # 최종 답변이면 텍스트를 브라우저로 보내고 루프를 종료합니다.
             if response.stop_reason == "end_turn":
                 for block in response.content:
                     if block.type == "text":
@@ -246,9 +246,9 @@ def chat():
                 history.append({"role": "assistant", "content": response.content[0].text})
                 break
 
-            # 도구 호출 처리
+            # 도구 호출 요청이 오면 실행 과정을 UI에 보여주면서 처리합니다.
             if response.stop_reason == "tool_use":
-                # LLM 응답(tool_use 포함)을 히스토리에 추가
+                # tool_use가 포함된 모델 응답을 히스토리에 저장합니다.
                 history.append({"role": "assistant", "content": response.content})
 
                 tool_results = []
@@ -259,13 +259,13 @@ def chat():
                     if block.type == "tool_use":
                         tool_info = TOOL_INFO.get(block.name, {"icon": "🔧", "label": block.name})
 
-                        # 클라이언트에 도구 호출 알림
+                        # 브라우저에 "어떤 도구를 어떤 인자로 호출하는지" 먼저 알려줍니다.
                         yield f"data: {json.dumps({'tool_call': {'name': block.name, 'icon': tool_info['icon'], 'label': tool_info['label'], 'input': block.input}})}\n\n"
 
-                        # 도구 실행
+                        # 실제 도구 실행은 서버 코드가 담당합니다.
                         result, is_error = execute_tool(block.name, block.input)
 
-                        # 클라이언트에 도구 결과 알림
+                        # 도구 실행 결과와 성공/실패 여부를 브라우저에 보냅니다.
                         yield f"data: {json.dumps({'tool_result': {'name': block.name, 'result': result, 'is_error': is_error}})}\n\n"
 
                         tool_results.append({
@@ -275,10 +275,10 @@ def chat():
                             "is_error": is_error,
                         })
 
-                # 도구 결과를 히스토리에 추가 → 다음 반복에서 LLM이 참고
+                # 도구 결과를 히스토리에 추가하면 다음 반복에서 모델이 이를 참고합니다.
                 history.append({"role": "user", "content": tool_results})
 
-        # 완료
+        # 모든 반복이 끝나면 토큰 사용량과 함께 완료 이벤트를 보냅니다.
         yield f"data: {json.dumps({'done': True, 'input_tokens': total_input_tokens, 'output_tokens': total_output_tokens})}\n\n"
 
     return Response(
@@ -304,12 +304,12 @@ if __name__ == "__main__":
 # ============================================================
 #
 # 1. GET /
-#    메인 페이지 (채팅 UI + 도구 목록 표시)
+#    채팅 UI와 사용 가능한 도구 목록을 보여주는 메인 페이지
 #
 # ─────────────────────────────────────────────────────────────
 #
 # 2. POST /chat
-#    사용자 메시지를 받아 Agent 루프를 실행하고 SSE로 과정을 스트리밍합니다.
+#    사용자 메시지를 받아 Agent 루프를 실행하고 과정을 SSE로 스트리밍합니다.
 #
 #    Request:
 #      Content-Type: application/json
@@ -323,13 +323,13 @@ if __name__ == "__main__":
 #      Content-Type: text/event-stream
 #      스트리밍 이벤트 (SSE):
 #
-#      [도구 호출] — LLM이 도구 사용을 요청할 때
+#      [도구 호출] — 모델이 도구 사용을 요청할 때
 #        data: {"tool_call": {"name": "get_weather", "icon": "🌤️", "label": "날씨 조회", "input": {"city": "서울"}}}
 #
 #      [도구 결과] — 도구 실행 완료 시
 #        data: {"tool_result": {"name": "get_weather", "result": "{...}", "is_error": false}}
 #
-#      [텍스트] — LLM의 텍스트 응답
+#      [텍스트] — 모델의 텍스트 응답
 #        data: {"text": "서울의 현재 기온은 12°C이고..."}
 #
 #      [완료] — 전체 응답 완료

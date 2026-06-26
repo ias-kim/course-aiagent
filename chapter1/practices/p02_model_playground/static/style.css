@@ -23,7 +23,7 @@ h1 {
     margin-bottom: 20px;
 }
 
-/* 설정 패널 */
+/* 모델과 파라미터 설정 패널 */
 .settings {
     background: #fff;
     border-radius: 12px;
@@ -92,7 +92,7 @@ input[type="range"]::-webkit-slider-thumb {
     margin-top: 4px;
 }
 
-/* 채팅 영역 */
+/* 대화 표시 영역 */
 .chat-box {
     background: #fff;
     border-radius: 12px;
@@ -134,7 +134,7 @@ input[type="range"]::-webkit-slider-thumb {
     padding: 4px 0 8px;
 }
 
-/* 입력 영역 */
+/* 메시지 입력 영역 */
 .input-area {
     display: flex;
     gap: 8px;
