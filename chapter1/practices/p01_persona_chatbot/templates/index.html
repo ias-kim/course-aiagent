@@ -13,7 +13,7 @@
             <p class="subtitle">System Prompt로 AI의 성격을 바꿔보세요</p>
         </header>
 
-        <!-- 페르소나 선택 -->
+        <!-- 페르소나를 고르는 영역 -->
         <div class="persona-selector">
             {% for id, persona in personas.items() %}
             <button class="persona-btn" data-persona="{{ id }}" onclick="selectPersona('{{ id }}')">
@@ -23,14 +23,14 @@
             {% endfor %}
         </div>
 
-        <!-- 채팅 영역 -->
+        <!-- 대화가 쌓이는 영역 -->
         <div id="chat-area" class="chat-area">
             <div id="messages" class="messages">
                 <div class="system-msg">페르소나를 선택하면 대화가 시작됩니다.</div>
             </div>
         </div>
 
-        <!-- 입력 영역 -->
+        <!-- 사용자 입력 영역 -->
         <div class="input-area">
             <input type="text" id="user-input" placeholder="메시지를 입력하세요..." disabled
                    onkeydown="if(event.key === 'Enter') sendMessage()">
@@ -38,7 +38,7 @@
             <button id="reset-btn" onclick="resetChat()" disabled>초기화</button>
         </div>
 
-        <!-- 토큰 사용량 -->
+        <!-- 이번 응답의 토큰 사용량 표시 -->
         <div id="token-info" class="token-info"></div>
     </div>
 
@@ -49,17 +49,17 @@
         function selectPersona(personaId) {
             currentPersona = personaId;
 
-            // 버튼 활성화 상태 변경
+            // 선택한 페르소나 버튼만 활성 상태로 표시합니다.
             document.querySelectorAll('.persona-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.persona === personaId);
             });
 
-            // 입력 활성화
+            // 페르소나를 고른 뒤에만 메시지를 입력할 수 있습니다.
             document.getElementById('user-input').disabled = false;
             document.getElementById('send-btn').disabled = false;
             document.getElementById('reset-btn').disabled = false;
 
-            // 대화 초기화
+            // 페르소나를 바꾸면 이전 대화와 섞이지 않도록 초기화합니다.
             resetChat();
 
             const messages = document.getElementById('messages');
@@ -76,17 +76,17 @@
             const message = input.value.trim();
             if (!message || !currentPersona) return;
 
-            // 사용자 메시지 표시
+            // 사용자가 보낸 메시지를 먼저 화면에 추가합니다.
             appendMessage('user', message);
             input.value = '';
             input.disabled = true;
             document.getElementById('send-btn').disabled = true;
 
-            // AI 응답 영역 생성
+            // 스트리밍으로 채워질 AI 응답 칸을 미리 만듭니다.
             const assistantDiv = appendMessage('assistant', '');
 
             try {
-                // SSE로 스트리밍 수신
+                // 서버에서 보내는 SSE 스트림을 읽어 실시간으로 화면에 붙입니다.
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -107,7 +107,7 @@
 
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
-                    buffer = lines.pop(); // 아직 완성되지 않은 마지막 줄 보관
+                    buffer = lines.pop(); // 아직 줄바꿈까지 도착하지 않은 조각은 다음 반복에 이어 붙입니다.
 
                     for (const line of lines) {
                         if (!line.startsWith('data: ')) continue;

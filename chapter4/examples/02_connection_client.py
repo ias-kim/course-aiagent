@@ -1,7 +1,7 @@
 """
 Chapter 4-2: MCP 연결 절차 확인용 - 추적 클라이언트
 
-Host(Client)와 MCP Server 간 연결 절차를 단계별로 추적합니다.
+Host(Client)와 MCP Server가 어떻게 연결되는지 단계별로 따라갑니다.
 
 전체 흐름:
     1) Transport 수립          - stdio_client() 로 자식 프로세스 실행
@@ -28,7 +28,7 @@ from mcp.types import (
     TextContent,
 )
 
-# Windows 콘솔에서 한글/유니코드 출력
+# Windows 콘솔에서 한글과 유니코드가 깨지지 않도록 출력 인코딩을 맞춥니다.
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -37,10 +37,10 @@ SERVER_PATH = str(Path(__file__).parent / "02_connection_server.py")
 
 
 # ============================================================
-# 클라이언트 capabilities 콜백 (서버 -> 클라이언트 요청 처리)
+# 클라이언트 capabilities 콜백: 서버가 클라이언트에게 요청할 때 실행됩니다.
 # ============================================================
-# 콜백을 등록하면 해당 capability가 자동으로 활성화됩니다.
-# 데모용이라 실제 동작은 최소화 (로깅 + 더미 응답).
+# 콜백을 등록하면 해당 capability를 지원한다고 서버에 알릴 수 있습니다.
+# 여기서는 연결 흐름을 보기 위해 로그와 더미 응답만 반환합니다.
 
 
 async def sampling_callback(context, params):
@@ -79,7 +79,7 @@ async def list_roots_callback(context):
 
 
 def section(title: str) -> None:
-    """섹션 헤더 출력"""
+    """출력 로그를 단계별로 보기 좋게 나누는 섹션 헤더입니다."""
     print()
     print("=" * 70)
     print(f" {title}")
@@ -87,10 +87,10 @@ def section(title: str) -> None:
 
 
 def dump(label: str, obj) -> None:
-    """객체를 JSON으로 덤프"""
+    """Pydantic 객체나 dict를 JSON처럼 보기 좋게 출력합니다."""
     print(f"\n  [{label}]")
     try:
-        # Pydantic 모델이면 model_dump 사용
+        # MCP SDK 응답은 Pydantic 모델인 경우가 많아 model_dump를 우선 사용합니다.
         if hasattr(obj, "model_dump"):
             data = obj.model_dump()
         else:
@@ -117,9 +117,8 @@ async def main():
           - (read, write) 스트림을 반환 (JSON-RPC 메시지 송수신용)
     """)
 
-    # MCP 서버를 Stdio 방식으로 구동
-    # sys.executable: 선택 python Path + 명령어
-    # SERVER_PATH: 실행 MCP 서버 코드 파일명    
+    # Stdio 방식은 서버 파일을 자식 프로세스로 실행하고 stdin/stdout으로 통신합니다.
+    # sys.executable은 현재 Python 실행 파일, SERVER_PATH는 실행할 MCP 서버 파일입니다.
     server_params = StdioServerParameters(
         command=sys.executable,
         args=[SERVER_PATH],
@@ -127,9 +126,8 @@ async def main():
     print(f"  command: {server_params.command}")
     print(f"  args:    {server_params.args}")
 
-    # 설정 서버 구동 후 stdio로 서버와 연결 수립
-    # read: server -> client
-    # write: client -> server
+    # 서버가 뜨면 read/write 스트림으로 JSON-RPC 메시지를 주고받습니다.
+    # read는 server -> client, write는 client -> server 방향입니다.
     async with stdio_client(server_params) as (read, write):
         print("\n  -> Transport 수립 완료 (서버 프로세스 기동됨)")
 

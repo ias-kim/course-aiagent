@@ -2,11 +2,10 @@
 실습 P01: 페르소나 챗봇
 
 페르소나(Persona)란?
-    AI에게 부여하는 "역할 설정"입니다.
+    AI에게 입히는 "역할 설정"입니다.
     동일한 LLM이라도 페르소나에 따라 말투, 지식 범위, 응답 스타일이 완전히 달라집니다.
 
-AI Agent에서 페르소나를 설정하는 핵심 기법:
-    System Prompt에 다음 4가지 요소를 명시합니다.
+AI Agent에서 페르소나를 만들 때는 보통 System Prompt에 아래 4가지를 넣습니다.
 
     1) 역할 정의 (Role)       — "당신은 ~입니다"
     2) 말투/톤 설정 (Tone)    — "~하게 말합니다" (반말, 존댓말, 이모지 등)
@@ -20,7 +19,7 @@ AI Agent에서 페르소나를 설정하는 핵심 기법:
                   ↑ Role          ↑ Tone              ↑ Scope                    ↑ Rules
 
 실습 목표:
-    - System Prompt로 페르소나를 설정하는 방법을 이해한다
+    - System Prompt로 페르소나를 설정하는 방법을 익힌다
     - 동일한 질문에 페르소나별로 응답이 어떻게 달라지는지 체험한다
     - Flask + SSE로 스트리밍 채팅 UI를 구현한다
 """
@@ -39,20 +38,20 @@ MODEL = "claude-sonnet-4-20250514"
 # ============================================================
 # 페르소나 정의
 # ============================================================
-# 각 페르소나는 System Prompt로 구현됩니다.
-# 아래 4가지 요소(Role, Tone, Scope, Rules)가 어떻게 반영되었는지 확인하세요.
+# 각 페르소나는 하나의 System Prompt로 구현됩니다.
+# Role, Tone, Scope, Rules가 문장 안에 어떻게 녹아 있는지 비교해 보세요.
 PERSONAS = {
     "teacher": {
         "name": "친절한 선생님",
         "description": "프로그래밍 입문자를 위한 선생님",
         "system": (
-            # Role: 역할 정의
+            # Role: AI가 맡을 역할
             "당신은 프로그래밍을 처음 배우는 학생을 가르치는 친절한 선생님입니다. "
-            # Tone: 말투 설정
+            # Tone: 답변 말투와 분위기
             "항상 존댓말을 사용하고, 격려하는 톤으로 말합니다. "
-            # Scope: 지식 범위
+            # Scope: 주로 답할 주제 범위
             "프로그래밍 관련 질문에 대해 비유와 예시를 들어 쉽게 설명합니다. "
-            # Rules: 행동 규칙
+            # Rules: 답변할 때 지켜야 할 규칙
             "코드 예시를 보여줄 때는 반드시 한 줄씩 설명을 덧붙입니다. "
             "프로그래밍과 무관한 질문에는 '좋은 질문이지만, 프로그래밍 관련 내용을 함께 이야기해봐요!'라고 안내합니다."
         ),
@@ -79,23 +78,23 @@ PERSONAS = {
     },
 }
 
-# 세션별 대화 히스토리 (간단 구현: 메모리 저장)
+# 세션별 대화 히스토리입니다. 실습용이라 서버 메모리에만 저장합니다.
 conversations: dict[str, list] = {}
 
 
 @app.route("/")
 def index():
-    """메인 페이지 — 페르소나 선택 + 채팅 UI"""
+    """페르소나 선택 화면과 채팅 UI를 보여줍니다."""
     return render_template("index.html", personas=PERSONAS)
 
 
 @app.route("/chat", methods=["POST"])
 def chat():
     """
-    채팅 API — SSE(Server-Sent Events)로 스트리밍 응답
+    채팅 API입니다. SSE(Server-Sent Events)로 답변을 실시간 전송합니다.
 
     SSE란?
-        서버가 클라이언트에게 데이터를 실시간으로 한 방향으로 보내는 방식.
+        서버가 브라우저로 데이터를 실시간 전송하는 단방향 스트리밍 방식입니다.
         Claude의 스트리밍 응답을 토큰 단위로 브라우저에 전달할 수 있습니다.
     """
     data = request.json
@@ -103,7 +102,7 @@ def chat():
     user_message = data["message"]
     session_id = data.get("session_id", "default")
 
-    # 대화 키: 세션 + 페르소나 조합
+    # 같은 브라우저 세션 안에서도 페르소나별로 대화를 따로 저장합니다.
     conv_key = f"{session_id}_{persona_id}"
     if conv_key not in conversations:
         conversations[conv_key] = []
@@ -118,19 +117,19 @@ def chat():
         with client.messages.stream(
             model=MODEL,
             max_tokens=1024,
-            system=persona["system"],  # ← 페르소나의 핵심: System Prompt
+            system=persona["system"],  # 페르소나를 실제로 적용하는 핵심 부분입니다.
             messages=history,
         ) as stream:
             full_response = ""
             for text in stream.text_stream:
                 full_response += text
-                # SSE 형식: "data: ...\n\n"
+                # SSE는 각 이벤트를 "data: ...\n\n" 형태로 보냅니다.
                 yield f"data: {json.dumps({'text': text})}\n\n"
 
-            # 응답 완료 후 히스토리에 추가
+            # 응답이 끝난 뒤 assistant 메시지를 히스토리에 저장합니다.
             history.append({"role": "assistant", "content": full_response})
 
-            # 토큰 사용량 전송
+            # 브라우저에 토큰 사용량도 함께 알려줍니다.
             usage = stream.get_final_message().usage
             yield f"data: {json.dumps({'done': True, 'input_tokens': usage.input_tokens, 'output_tokens': usage.output_tokens})}\n\n"
 
@@ -142,7 +141,7 @@ def chat():
 
 @app.route("/reset", methods=["POST"])
 def reset():
-    """대화 히스토리 초기화"""
+    """현재 페르소나의 대화 히스토리를 초기화합니다."""
     data = request.json
     session_id = data.get("session_id", "default")
     persona_id = data.get("persona", "")
@@ -160,14 +159,14 @@ if __name__ == "__main__":
 # ============================================================
 #
 # 1. GET /
-#    메인 페이지 (채팅 UI)를 반환합니다.
+#    메인 페이지, 즉 페르소나 선택과 채팅 UI를 반환합니다.
 #
 #    Response: text/html
 #
 # ─────────────────────────────────────────────────────────────
 #
 # 2. POST /chat
-#    사용자 메시지를 받아 AI 응답을 SSE 스트리밍으로 반환합니다.
+#    사용자 메시지를 받아 Claude 응답을 SSE 스트리밍으로 반환합니다.
 #
 #    Request:
 #      Content-Type: application/json
@@ -182,7 +181,7 @@ if __name__ == "__main__":
 #      Content-Type: text/event-stream
 #      스트리밍 이벤트 (SSE):
 #
-#      [텍스트 청크] — 토큰 단위로 반복 전송
+#      [텍스트 청크] — 생성되는 텍스트 조각을 반복 전송
 #        data: {"text": "응답 텍스트 조각"}
 #
 #      [완료] — 스트림 마지막에 1회 전송
@@ -205,7 +204,7 @@ if __name__ == "__main__":
 # ─────────────────────────────────────────────────────────────
 #
 # 3. POST /reset
-#    특정 페르소나의 대화 히스토리를 초기화합니다.
+#    특정 페르소나에 쌓인 대화 히스토리를 초기화합니다.
 #
 #    Request:
 #      Content-Type: application/json

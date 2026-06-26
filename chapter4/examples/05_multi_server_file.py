@@ -1,9 +1,8 @@
 """
 Chapter 4-5 보조: 파일시스템 MCP 서버
 
-05_multi_server.py의 두 번째 연결 대상.
-Tool만 제공하며, 03_components_server.py(Tool+Resource+Prompt)와 결합되어
-다중 서버 구성을 시연합니다.
+05_multi_server.py에서 두 번째로 연결하는 MCP 서버입니다.
+파일 관련 Tool만 제공하며, 메모장 서버와 함께 다중 서버 구성을 보여줍니다.
 """
 
 import json
@@ -16,7 +15,7 @@ mcp = FastMCP("file-tools")
 
 @mcp.tool()
 def list_files(directory: str = ".") -> str:
-    """디렉토리의 파일 목록을 반환합니다.
+    """디렉토리 안의 파일과 폴더 목록을 반환합니다.
 
     Args:
         directory: 조회할 경로 (기본값: 현재 디렉토리)
@@ -37,7 +36,7 @@ def list_files(directory: str = ".") -> str:
 
 @mcp.tool()
 def file_info(path: str) -> str:
-    """파일의 크기/수정일 정보를 반환합니다.
+    """파일의 크기, 수정일, 디렉토리 여부를 반환합니다.
 
     Args:
         path: 조회할 파일 경로

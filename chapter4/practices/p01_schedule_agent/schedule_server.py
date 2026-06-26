@@ -1,8 +1,8 @@
 """
 MCP 서버: 일정 관리 도구
 
-이 파일은 독립적인 MCP 서버입니다.
-SQLite DB를 사용하여 일정을 관리하는 4가지 도구를 제공합니다.
+이 파일은 Agent 앱과 분리되어 실행되는 MCP 서버입니다.
+SQLite DB를 사용해 일정을 관리하는 4가지 도구를 제공합니다.
 
 도구 목록:
     - add_schedule: 일정 추가
@@ -23,12 +23,12 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("schedule-manager")
 
-# DB 파일: 이 서버와 같은 폴더에 생성
+# DB 파일은 이 서버 파일과 같은 폴더에 생성합니다.
 DB_PATH = str(Path(__file__).parent / "schedules.db")
 
 
 def get_db():
-    """DB 연결 및 테이블 자동 생성"""
+    """DB에 연결하고, schedules 테이블이 없으면 자동으로 만듭니다."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("""
@@ -44,7 +44,7 @@ def get_db():
 
 
 # ============================================================
-# MCP 도구 정의
+# MCP 도구 정의입니다. 이 함수들이 Agent에서 호출 가능한 일정 도구가 됩니다.
 # ============================================================
 
 @mcp.tool()

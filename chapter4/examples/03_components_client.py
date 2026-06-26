@@ -1,11 +1,11 @@
 """
 Chapter 4-3: MCP 3대 구성요소 클라이언트 (Resource / Tool / Prompt)
 
-03_components_server.py에 연결하여 세 구성요소를 각각 호출하고,
-"누가 호출하는가"와 "반환 형태"의 차이를 확인합니다.
+03_components_server.py에 연결해 세 구성요소를 직접 호출하고,
+"누가 호출하는가"와 "무엇이 반환되는가"를 비교합니다.
 
-의도적으로 LLM을 사용하지 않습니다.
-각 구성요소의 '본질'을 이해하는 데 집중하기 위함입니다.
+일부러 LLM을 사용하지 않습니다.
+MCP 구성요소 자체의 차이를 먼저 보기 위해서입니다.
 
 실행:
     python chapter4/examples/03_components_client.py
@@ -50,7 +50,7 @@ async def main():
             await session.initialize()
 
             # ============================================================
-            # Part A: Resource - Application-controlled
+            # Part A: Resource - Host 앱이 직접 읽어 오는 데이터
             # ============================================================
             section("Part A: Resource (데이터 읽기)")
             print("""
@@ -59,12 +59,12 @@ async def main():
   특징     : URI로 식별, 부수효과 없음, 데이터 반환
 """)
 
-            # 1) 고정 URI 리소스
+            # 1) 고정 URI 리소스를 읽습니다.
             print("  ── 1) notes://list 호출")
             result = await session.read_resource("notes://list")
             box("반환된 데이터", result.contents[0].text)
 
-            # 2) URI 템플릿 (파라미터)
+            # 2) URI 안에 파라미터가 들어가는 리소스를 읽습니다.
             print("\n  ── 2) notes://N002 호출 (URI 파라미터)")
             result = await session.read_resource("notes://N002")
             box("반환된 데이터", result.contents[0].text)
@@ -73,7 +73,7 @@ async def main():
             print("  >> 이 데이터는 나중에 LLM의 system/user 메시지에 주입 가능")
 
             # ============================================================
-            # Part B: Tool - Model-controlled
+            # Part B: Tool - 모델이 요청하고 Host가 실행하는 기능
             # ============================================================
             section("Part B: Tool (행동 수행)")
             print("""
@@ -81,14 +81,14 @@ async def main():
   메서드   : session.call_tool(name, arguments)
   특징     : 함수명으로 식별, 상태 변경 가능, 결과 반환
 """)
-            # 실제로는 LLM이 tool_use로 요청하지만, 여기서는 직접 호출로 본질만 확인
+            # 실제 Agent에서는 LLM이 tool_use로 요청하지만, 여기서는 차이를 보기 위해 직접 호출합니다.
 
-            # 1) 검색 Tool
+            # 1) 읽기 성격의 검색 Tool입니다.
             print("  ── 1) search_notes(keyword='MCP') 호출")
             result = await session.call_tool("search_notes", {"keyword": "MCP"})
             box("반환된 결과", result.content[0].text)
 
-            # 2) 추가 Tool (상태 변경!)
+            # 2) 메모를 추가하는 Tool입니다. 서버 상태가 바뀝니다.
             print("\n  ── 2) add_note(title='테스트', body='...') 호출")
             result = await session.call_tool(
                 "add_note",
@@ -97,7 +97,7 @@ async def main():
             
             box("반환된 결과", result.content[0].text)
 
-            # 3) 상태 변경 확인 - Resource로 다시 읽기
+            # 3) Resource를 다시 읽어 Tool 호출로 상태가 바뀌었는지 확인합니다.
             print("\n  ── 3) 변경 확인: notes://list 다시 읽기 (Resource)")
             result = await session.read_resource("notes://list")
             box("변경된 전체 목록", result.contents[0].text)
@@ -106,7 +106,7 @@ async def main():
             print("  >> Resource로 다시 읽어보면 상태가 바뀐 것을 확인 가능")
 
             # ============================================================
-            # Part C: Prompt - User-controlled
+            # Part C: Prompt - 사용자가 선택하는 대화 템플릿
             # ============================================================
             section("Part C: Prompt (대화 템플릿)")
             print("""
@@ -118,7 +118,7 @@ async def main():
             print("  ── summarize_notes(topic='학습') 호출")
             result = await session.get_prompt("summarize_notes", {"topic": "학습"})
 
-            # Prompt는 messages 리스트를 반환 (Claude API 메시지 형식과 유사)
+            # Prompt는 Claude API의 messages와 비슷한 메시지 리스트를 반환합니다.
             for msg in result.messages:
                 print(f"\n  [role: {msg.role}]")
                 print("  " + "─" * 50)
@@ -131,7 +131,7 @@ async def main():
             print("  >> 사용자는 복잡한 프롬프트를 매번 작성하지 않아도 됨")
 
             # ============================================================
-            # 비교 요약
+            # 세 구성요소를 한눈에 비교합니다.
             # ============================================================
             section("비교 요약: 누가, 언제, 무엇을")
             print("""

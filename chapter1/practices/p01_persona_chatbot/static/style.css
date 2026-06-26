@@ -31,7 +31,7 @@ header h1 {
     margin-top: 0.25rem;
 }
 
-/* 페르소나 선택 버튼 */
+/* 페르소나 선택 카드 */
 .persona-selector {
     display: flex;
     gap: 0.5rem;
@@ -69,7 +69,7 @@ header h1 {
     color: #888;
 }
 
-/* 채팅 영역 */
+/* 대화 표시 영역 */
 .chat-area {
     background: #fff;
     border: 1px solid #ddd;
@@ -117,7 +117,7 @@ header h1 {
     word-break: break-word;
 }
 
-/* 입력 영역 */
+/* 메시지 입력 영역 */
 .input-area {
     display: flex;
     gap: 0.5rem;
@@ -167,7 +167,7 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* 토큰 정보 */
+/* 토큰 사용량 표시 */
 .token-info {
     text-align: right;
     font-size: 0.8rem;

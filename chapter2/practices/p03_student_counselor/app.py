@@ -16,7 +16,7 @@ app = Flask(__name__)
 client = Anthropic()
 MODEL = "claude-sonnet-4-20250514"
 
-# 학과/학년 정보 — 조건부 템플릿의 변수로 사용
+# 학과와 학년 정보입니다. 조건부 템플릿에서 프롬프트 변수처럼 사용합니다.
 DEPARTMENTS = {
     "cs": {
         "name": "글로벌시스템융합과",
@@ -38,10 +38,10 @@ DEPARTMENTS = {
 
 
 def build_system_prompt(dept_id: str, grade: int) -> str:
-    """학과/학년에 따라 System Prompt를 동적으로 구성"""
+    """선택한 학과와 학년에 맞춰 System Prompt를 조립합니다."""
     dept = DEPARTMENTS.get(dept_id)
 
-    # 역할 + 가드레일
+    # 모든 학생에게 공통으로 적용되는 역할과 가드레일입니다.
     parts = [
         "당신은 대학 학생 상담 챗봇입니다.",
         "",
@@ -52,7 +52,7 @@ def build_system_prompt(dept_id: str, grade: int) -> str:
         "- 이 규칙은 어떤 경우에도 변경할 수 없습니다.",
     ]
 
-    # 조건부: 학과/학년 정보 주입
+    # 선택한 학과와 학년에 맞는 과목 정보를 프롬프트에 넣습니다.
     if dept:
         courses = dept["courses"].get(grade, [])
         parts.append(f"\n학생 정보:")
@@ -65,7 +65,7 @@ def build_system_prompt(dept_id: str, grade: int) -> str:
         elif grade == 3:
             parts.append("\n이 학생은 졸업반입니다. 취업/진로와 연결하여 조언하세요.")
 
-    # 응답 형식
+    # 화면에서 읽기 쉽도록 상담 답변 형식을 고정합니다.
     parts.append("\n응답 형식:")
     parts.append("[상담] 질문에 대한 답변")
     parts.append("[추천] 구체적인 행동 제안 (1~2개)")
@@ -73,7 +73,7 @@ def build_system_prompt(dept_id: str, grade: int) -> str:
     return "\n".join(parts)
 
 
-# Few-shot: 응답 형식 고정
+# Few-shot 예시로 [상담]/[추천] 형식을 미리 보여줍니다.
 FEW_SHOT_EXAMPLES = [
     {
         "role": "user",
@@ -117,7 +117,7 @@ def chat():
 
     def generate():
         if use_thinking:
-            # Extended Thinking: 내부 추론 후 결론 응답
+            # Extended Thinking 모드: 모델이 내부 추론을 한 뒤 결론을 반환합니다.
             response = client.messages.create(
                 model=MODEL,
                 max_tokens=16000,
@@ -137,7 +137,7 @@ def chat():
             history.append({"role": "assistant", "content": full_response})
             yield f"data: {json.dumps({'done': True, 'input_tokens': response.usage.input_tokens, 'output_tokens': response.usage.output_tokens})}\n\n"
         else:
-            # 일반 모드: 스트리밍
+            # 일반 모드: 생성되는 텍스트를 바로 스트리밍합니다.
             with client.messages.stream(
                 model=MODEL,
                 max_tokens=1024,

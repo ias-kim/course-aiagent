@@ -66,7 +66,7 @@
             const btn = document.getElementById('run-btn');
             btn.disabled = true;
 
-            // 파이프라인 UI 초기화
+            // 이전 결과를 지우고 새 파이프라인 단계를 화면에 준비합니다.
             const pipeline = document.getElementById('pipeline');
             pipeline.innerHTML = stepNames.map((name, i) =>
                 `${i > 0 ? '<div class="arrow">↓</div>' : ''}

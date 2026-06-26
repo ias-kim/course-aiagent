@@ -16,7 +16,8 @@ app = Flask(__name__)
 client = Anthropic()
 MODEL = "claude-sonnet-4-20250514"
 
-# 구조 지정 CoT + 가드레일을 포함한 System Prompt
+# 구조 지정 CoT와 가드레일을 함께 넣은 System Prompt입니다.
+# 리뷰 범위와 출력 형식을 고정해 화면에서 일관되게 보여주기 위함입니다.
 SYSTEM_PROMPT = """당신은 시니어 Python 코드 리뷰어입니다.
 
 리뷰 규칙:
@@ -28,7 +29,7 @@ SYSTEM_PROMPT = """당신은 시니어 Python 코드 리뷰어입니다.
 [개선안] 구체적인 수정 코드와 설명
 [점수] 10점 만점 (정수)"""
 
-# Few-shot: 리뷰 형식을 예시로 고정
+# Few-shot 예시입니다. 실제 리뷰가 어떤 형식으로 나와야 하는지 먼저 보여줍니다.
 FEW_SHOT_EXAMPLES = [
     {
         "role": "user",
@@ -79,7 +80,7 @@ def chat():
     history = conversations[session_id]
     history.append({"role": "user", "content": user_message})
 
-    # Few-shot 예시를 대화 앞에 붙여서 형식 유도
+    # Few-shot 예시를 대화 앞에 붙여 모델이 같은 리뷰 형식을 따르게 합니다.
     messages = FEW_SHOT_EXAMPLES + history
 
     def generate():
