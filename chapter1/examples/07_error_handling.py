@@ -23,7 +23,7 @@ from anthropic import (
 load_dotenv()
 
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 # Agent 품질은 모델 성능뿐 아니라 검증, 재시도, 로그 같은 운영 요소에도 달려 있습니다.
 # ============================================================

@@ -14,7 +14,7 @@ load_dotenv()
 
 app = Flask(__name__)
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 # 구조 지정 CoT와 가드레일을 함께 넣은 System Prompt입니다.
 # 리뷰 범위와 출력 형식을 고정해 화면에서 일관되게 보여주기 위함입니다.

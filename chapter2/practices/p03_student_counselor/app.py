@@ -14,7 +14,7 @@ load_dotenv()
 
 app = Flask(__name__)
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 # 학과와 학년 정보입니다. 조건부 템플릿에서 프롬프트 변수처럼 사용합니다.
 DEPARTMENTS = {

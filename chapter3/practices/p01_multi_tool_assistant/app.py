@@ -28,7 +28,7 @@ load_dotenv()
 
 app = Flask(__name__)
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 
 # ============================================================

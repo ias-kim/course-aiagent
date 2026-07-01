@@ -40,7 +40,7 @@ load_dotenv()
 
 app = Flask(__name__)
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 SERVER_PATH = str(Path(__file__).parent / "schedule_server.py")
 
 # 브라우저 세션별 대화 히스토리입니다.

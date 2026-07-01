@@ -17,7 +17,7 @@ client = Anthropic()
 print("=== 스트리밍 응답 ===")
 
 with client.messages.stream(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     max_tokens=512,
     messages=[
         {"role": "user", "content": "AI Agent가 뭔지 3문장으로 설명해주세요."}
@@ -39,7 +39,7 @@ print(f"입력: {final_message.usage.input_tokens}, 출력: {final_message.usage
 print("\n=== 이벤트 단위 처리 ===")
 
 with client.messages.stream(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     max_tokens=256,
     messages=[
         {"role": "user", "content": "하늘이 파란 이유를 한 문장으로 알려주세요."}

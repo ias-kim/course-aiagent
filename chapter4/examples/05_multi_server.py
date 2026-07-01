@@ -37,7 +37,7 @@ if sys.platform == "win32":
 load_dotenv()
 
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 BASE = Path(__file__).parent
 SERVERS = {

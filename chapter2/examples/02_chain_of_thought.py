@@ -30,7 +30,7 @@ from anthropic import Anthropic
 load_dotenv()
 
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 problem = """학교에 학생이 450명 있습니다.
 남학생이 여학생보다 30명 많습니다.
@@ -83,7 +83,7 @@ print(f"\n  [토큰: 입력 {response.usage.input_tokens} / 출력 {response.usa
 # 2부: Extended Thinking (Reasoning Model)
 # ============================================================
 # Claude에서는 thinking 파라미터를 켜면 모델이 별도의 추론 단계를 사용합니다.
-# 같은 모델(claude-sonnet-4)이지만 동작 방식이 달라집니다:
+# 같은 모델(claude-sonnet-4-6)이지만 동작 방식이 달라집니다:
 #
 #   프롬프트 CoT: [프롬프트] → [추론 + 답이 섞인 응답]
 #   Extended Thinking: [프롬프트] → [내부 thinking] → [결론만 응답]

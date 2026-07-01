@@ -18,7 +18,7 @@ from anthropic import Anthropic
 load_dotenv()
 
 client = Anthropic()
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 
 
 # ── Step ① 함수/API 구현 ─────────────────────────────────
