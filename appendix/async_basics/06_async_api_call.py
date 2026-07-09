@@ -9,6 +9,13 @@
 
 이 예제에서는 Anthropic의 AsyncAnthropic 클라이언트로
 Claude API를 비동기로 호출하는 방법을 보여줍니다.
+
+여기서는 "동시 호출로 빨라진다"는 핵심만 봅니다.
+각 질문은 서로 의존하지 않으므로 동시에 보내도 됩니다.
+이처럼 독립적인 I/O 작업이 여러 개 있을 때 비동기의 효과가 가장 잘 드러납니다.
+
+실무에 필요한 나머지(타임아웃, 동시 개수 제한, 예외를 값으로 수렴)는
+chapter1/examples/10_production_client.py에서 이 코드를 강화한 형태로 다룹니다.
 """
 
 import time
@@ -38,6 +45,7 @@ def run_sync():
     start = time.time()
 
     for q in questions:
+        # create()가 끝날 때까지 다음 질문으로 넘어가지 않습니다.
         response = client.messages.create(
             model=MODEL,
             max_tokens=100,
@@ -57,7 +65,7 @@ def run_sync():
 
 async def ask(client: AsyncAnthropic, question: str) -> str:
     """비동기로 하나의 질문을 보내고 답변을 받는 함수"""
-    response = await client.messages.create(   # ← await로 비동기 호출
+    response = await client.messages.create(   # 네트워크 응답을 기다리는 동안 다른 호출이 진행됩니다.
         model=MODEL,
         max_tokens=100,
         messages=[{"role": "user", "content": question}],
@@ -67,7 +75,9 @@ async def ask(client: AsyncAnthropic, question: str) -> str:
 
 async def run_async():
     """비동기 클라이언트로 3개 질문을 동시에 호출"""
-    client = AsyncAnthropic()  # ← 비동기 전용 클라이언트
+    # 비동기 전용 클라이언트입니다.
+    # 실무에서는 앱 시작 시 한 번 만들고 재사용하는 편이 좋습니다.
+    client = AsyncAnthropic()
     questions = [
         "Python을 한 문장으로 설명해줘",
         "JavaScript를 한 문장으로 설명해줘",
@@ -77,7 +87,8 @@ async def run_async():
     print("[비동기 방식] 3개 질문 동시 호출")
     start = time.time()
 
-    # 3개 질문을 동시에 전송
+    # 3개 질문을 동시에 전송합니다.
+    # 결과는 gather에 넘긴 질문 순서대로 돌아옵니다.
     answers = await asyncio.gather(
         ask(client, questions[0]),
         ask(client, questions[1]),
@@ -91,7 +102,7 @@ async def run_async():
 
     elapsed = time.time() - start
     print(f"→ 총 소요시간: {elapsed:.1f}초")
-    print("  (동기 대비 약 1/3 — 3개 요청이 동시에 처리되므로)\n")
+    print("  (대략 가장 오래 걸린 요청 시간에 가까워짐 — 3개 요청이 함께 진행되므로)\n")
 
 
 # ============================================================

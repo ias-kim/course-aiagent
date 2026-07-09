@@ -6,6 +6,9 @@ asyncio.run(main())에 넘긴 코루틴은 "메인 Task"로 승격됩니다.
 메인 Task가 끝나면 이벤트 루프도 닫히고,
 아직 끝나지 않은 나머지 Task는 전부 취소(cancel)됩니다.
 
+앞의 A-3에서 create_task만 하고 await하지 않은 작업이 끝까지 가지 못하는 이유가
+바로 이 정리 단계 때문입니다.
+
 asyncio.run()의 내부 동작 (단순화):
     1. 이벤트 루프 생성
     2. 코루틴을 메인 Task로 감싸서 실행    ← create_task와 동일
@@ -33,7 +36,7 @@ async def make_coffee(menu: str) -> str:
         # cancel()되면 await 지점(asyncio.sleep)에서 이 예외가 발생합니다.
         # 뒷정리(자원 반납 등)를 할 마지막 기회입니다.
         print(f"  [취소 통보] {menu} — 조리 중단하고 정리합니다")
-        raise  # 취소를 삼키지 말고 다시 던져야 정상적으로 취소 처리됩니다
+        raise  # 취소를 삼키지 말고 다시 던져야 호출자도 "취소됨"을 알 수 있습니다.
 
 
 # ============================================================
@@ -62,11 +65,11 @@ async def manual_cancel():
     print("[2] 수동 취소 — task.cancel()")
 
     task = asyncio.create_task(make_coffee("라떼"))
-    await asyncio.sleep(1)      # 1초 뒤 손님이 주문 취소
-    task.cancel()
+    await asyncio.sleep(1)      # 1초 뒤 손님이 주문을 취소했다고 가정합니다.
+    task.cancel()               # 취소 요청. 즉시 멈추는 것이 아니라 다음 await 지점에서 전달됩니다.
 
     try:
-        await task
+        await task              # 취소가 실제로 처리될 때까지 기다립니다.
     except asyncio.CancelledError:
         print("  → 주문이 취소되어 라떼는 나오지 않았습니다\n")
 
@@ -85,7 +88,7 @@ async def abandoned_tasks():
 
     asyncio.create_task(make_coffee("말차"))
     asyncio.create_task(make_coffee("아메리카노"))
-    # await 없이 함수 종료 → 곧 메인 Task도 종료 → 두 Task는 일괄 취소됨
+    # await 없이 함수 종료 → 곧 메인 Task도 종료 → 두 Task는 일괄 취소됩니다.
 
 
 # ============================================================

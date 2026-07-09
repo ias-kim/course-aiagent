@@ -4,6 +4,9 @@
 TaskGroup은 함께 묶인 작업 중 하나가 실패하면,
 아직 끝나지 않은 나머지 작업을 자동으로 취소합니다.
 
+즉 TaskGroup은 "이 작업들은 한 세트다"라고 표현하는 도구입니다.
+한 세트 안에서 실패가 나면 남은 일을 정리하고, 예외를 호출자에게 알려줍니다.
+
 이 파일에서는 그 취소가 어떻게 전파되는지 눈으로 확인하고,
 끝난 태스크의 상태(성공/실패/취소)를 안전하게 구분하는 방법을 다룹니다.
 
@@ -36,10 +39,10 @@ async def make_order(item: str, taken_time: int) -> str:
         return f"{item} 완료"
     except asyncio.CancelledError:
         print(f"  [취소] {item}: 다른 주문 실패로 함께 취소")
-        raise                        # 취소 신호는 다시 전달해야 함
+        raise                        # 취소 신호는 다시 전달해야 Task가 취소 상태로 남습니다.
     except Exception as e:
         print(f"  [실패] {item}: {e}")
-        raise                        # TaskGroup이 수거하도록 재전파
+        raise                        # TaskGroup이 예외를 수거하고 형제 Task를 정리하도록 재전파합니다.
 
 
 async def pattern1():
@@ -72,6 +75,7 @@ async def pattern1():
 # 취소된 태스크에 exception()이나 result()를 호출하면 CancelledError가 발생합니다.
 
 async def slow_fail_order(item: str, taken_time: int) -> str:
+    """일정 시간 뒤 성공하거나, 우유만 실패하는 주문 시뮬레이션입니다."""
     print(f"  {item} 주문 접수")
     await asyncio.sleep(taken_time)
     if item == "우유":
@@ -119,7 +123,7 @@ async def pattern3():
     except ValueError as e:
         print(f"  [실패] {e}: 예외를 받은 시점. 라떼의 운명은?")
 
-    await asyncio.sleep(2)               # main을 살려두고 관찰
+    await asyncio.sleep(2)               # main을 살려두어 라떼가 계속 도는지 관찰합니다.
     print("  → 라떼가 계속 돌고 있었음 (TaskGroup이었다면 취소됐을 것)")
 
 

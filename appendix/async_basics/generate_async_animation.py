@@ -4,6 +4,9 @@
 01_sync_vs_async.py의 비동기 부분을
 Event Loop, Task Queue, Task 상태 + 소스 코드를 함께 시각화합니다.
 
+수업 자료용 보조 스크립트입니다.
+예제 실행에 꼭 필요한 파일은 아니고, async_event_loop.gif를 다시 만들 때 사용합니다.
+
 실행 방법:
     python appendix/async_basics/generate_async_animation.py
 
@@ -13,7 +16,8 @@ Event Loop, Task Queue, Task 상태 + 소스 코드를 함께 시각화합니다
 
 from PIL import Image, ImageDraw, ImageFont
 
-# 고해상도 (2x)
+# 고해상도(2x)로 그린 뒤 GIF로 저장합니다.
+# 좌표와 폰트 크기는 모두 SCALE을 곱해 선명도를 확보합니다.
 SCALE = 2
 WIDTH = 1100 * SCALE
 HEIGHT = 580 * SCALE
@@ -38,7 +42,8 @@ CODE_FUNC = (100, 200, 255)       # 함수명
 CODE_NORMAL = (210, 210, 220)
 CODE_DIM = (120, 120, 140)
 
-# 폰트
+# 한글 표시를 위해 Windows/일반 환경에서 찾을 만한 폰트를 순서대로 시도합니다.
+# 모두 실패하면 Pillow 기본 폰트로 폴백합니다.
 FONT_CANDIDATES = [
     "malgun.ttf", "NanumGothic.ttf", "gulim.ttc", "arial.ttf",
 ]
@@ -48,6 +53,7 @@ FONT_CANDIDATES_BOLD = [
 
 
 def load_font(size, bold=False):
+    """사용 가능한 폰트를 찾아 로드합니다. 없으면 기본 폰트를 사용합니다."""
     candidates = FONT_CANDIDATES_BOLD if bold else FONT_CANDIDATES
     for name in candidates:
         try:
@@ -72,7 +78,8 @@ S = SCALE  # 축약
 # ============================================================
 # 소스 코드 (구문 강조용 토큰)
 # ============================================================
-# 각 줄은 (token, color) 튜플의 리스트 + 태스크 태그
+# 각 줄은 (token, color) 튜플의 리스트와 태스크 태그로 구성됩니다.
+# 태스크 태그가 있으면 코드 줄 오른쪽에 해당 커피 색상 점을 표시합니다.
 
 CODE_LINES = [
     # line 0
@@ -104,6 +111,7 @@ CODE_LINES = [
 
 # ============================================================
 # 프레임 데이터
+# 한 프레임은 특정 시점의 이벤트 루프 동작, 큐, Task 상태, 강조할 코드 줄을 담습니다.
 # ============================================================
 
 FRAMES = [
@@ -247,7 +255,7 @@ RIGHT_X = CODE_PANEL_W + 20 * S
 
 
 def draw_code_panel(draw, frame_data):
-    """좌측 코드 패널"""
+    """좌측 코드 패널을 그립니다."""
     y0 = 48 * S
 
     # 배경
@@ -268,7 +276,7 @@ def draw_code_panel(draw, frame_data):
         ly = code_y + i * line_h
         is_hl = i in highlighted
 
-        # 하이라이트 배경
+        # 현재 실행/관찰 중인 코드 줄은 배경을 밝게 표시합니다.
         if is_hl:
             draw.rectangle([(0, ly), (CODE_PANEL_W - 2 * S, ly + line_h)], fill=CODE_HIGHLIGHT_BG)
             # 실행 화살표
@@ -279,7 +287,7 @@ def draw_code_panel(draw, frame_data):
         num_color = HIGHLIGHT if is_hl else LINE_NUM_COLOR
         draw.text((18 * S, ly + 7 * S), line_num, font=font_code, fill=num_color)
 
-        # 구문 강조 토큰 렌더링
+        # 구문 강조 토큰을 순서대로 이어 그립니다.
         tx = 46 * S
         for text, color in tokens:
             if is_hl:
@@ -302,6 +310,7 @@ def draw_code_panel(draw, frame_data):
 
 
 def draw_frame(frame_data, frame_idx):
+    """프레임 데이터 하나를 이미지 한 장으로 렌더링합니다."""
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
@@ -329,7 +338,7 @@ def draw_frame(frame_data, frame_idx):
     draw.text((rx + 12 * S, ely + 9 * S), "Event Loop:", font=font_label, fill=LOOP_COLOR)
     draw.text((rx + 135 * S, ely + 10 * S), frame_data["loop_action"], font=font_body, fill=TEXT_COLOR)
 
-    # Task Queue
+    # Task Queue: 실행 대기 중인 Task를 FIFO 순서로 보여줍니다.
     qy = 106 * S
     draw.text((rx, qy), "Task Queue (FIFO)", font=font_label, fill=DIM_TEXT)
     draw.rounded_rectangle(
@@ -351,7 +360,7 @@ def draw_frame(frame_data, frame_idx):
     else:
         draw.text((rx + rw // 2 - 30 * S, qy + 34 * S), "(비어 있음)", font=font_small, fill=DIM_TEXT)
 
-    # Tasks 카드
+    # Tasks 카드: 각 Task의 현재 상태를 카드 형태로 보여줍니다.
     ty = 180 * S
     draw.text((rx, ty), "Tasks", font=font_label, fill=DIM_TEXT)
 
@@ -407,7 +416,7 @@ def draw_frame(frame_data, frame_idx):
             state, font=font_small, fill=DIM_TEXT,
         )
 
-        # 코드 힌트 박스
+        # 코드 힌트 박스: 현재 상태와 연결되는 코드 조각을 표시합니다.
         draw.rounded_rectangle(
             [(cx + 8 * S, cy + 108 * S), (cx + card_w - 8 * S, cy + 168 * S)],
             radius=6 * S, fill=(28, 28, 38),
@@ -463,6 +472,7 @@ def draw_frame(frame_data, frame_idx):
 
 # ============================================================
 # GIF 생성
+# FRAMES의 각 상태를 이미지로 만든 뒤 하나의 애니메이션 GIF로 묶습니다.
 # ============================================================
 if __name__ == "__main__":
     frames = []

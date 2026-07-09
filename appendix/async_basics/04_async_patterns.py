@@ -5,7 +5,12 @@
 
     1. gather  — 여러 작업을 동시에 실행하고 모든 결과를 받기
     2. TaskGroup — 구조적 동시성 (Python 3.11+, 에러 처리 강화)
-    3. async for / async with — 비동기 반복과 컨텍스트 매니저
+    3. async with — 비동기 리소스 연결과 해제를 안전하게 관리
+
+선택 기준:
+    - 독립 작업을 한 번에 모으기: gather
+    - 한 묶음의 성공/실패를 엄격하게 관리: TaskGroup
+    - 연결을 열고 반드시 닫아야 하는 리소스: async with
 """
 
 import asyncio
@@ -16,7 +21,7 @@ import asyncio
 # ============================================================
 
 async def call_api(name: str, delay: float) -> dict:
-    """외부 API 호출 시뮬레이션"""
+    """외부 API 호출 시뮬레이션: delay 동안 네트워크 대기를 흉내냅니다."""
     print(f"  📡 {name} API 호출 중...")
     await asyncio.sleep(delay)
     return {"api": name, "status": "ok", "delay": delay}
@@ -28,8 +33,8 @@ async def call_api(name: str, delay: float) -> dict:
 
 async def pattern_gather():
     """
-    gather: 여러 비동기 작업을 동시에 실행하고, 모든 결과를 리스트로 반환
-    → 서로 독립적인 API 여러 개를 동시에 호출할 때 사용
+    gather: 여러 비동기 작업을 동시에 실행하고, 모든 결과를 리스트로 반환합니다.
+    서로 독립적인 API 여러 개를 동시에 호출할 때 사용합니다.
     """
     print("[패턴 1] asyncio.gather")
     print()
@@ -40,7 +45,7 @@ async def pattern_gather():
         call_api("주식", 0.5),
     )
 
-    # 결과는 호출 순서대로 반환됨 (완료 순서가 아님!)
+    # 결과는 "완료 순서"가 아니라 gather에 넘긴 "호출 순서"대로 반환됩니다.
     for r in results:
         print(f"  결과: {r}")
     print()
@@ -52,8 +57,12 @@ async def pattern_gather():
 
 async def pattern_taskgroup():
     """
-    TaskGroup: gather와 비슷하지만, 하나가 실패하면 나머지를 자동 취소
-    → 모든 작업이 성공해야 의미 있는 경우에 적합
+    TaskGroup: gather와 비슷하지만, 하나가 실패하면 나머지를 자동 취소합니다.
+    모든 작업이 성공해야 의미 있는 경우에 적합합니다.
+
+    여기서는 전원 성공하는 경우만 봅니다.
+    실패 시 취소가 어떻게 전파되는지, 상태를 어떻게 확인하는지는
+    09_taskgroup_cancellation.py에서 자세히 다룹니다.
     """
     print("[패턴 2] TaskGroup (Python 3.11+)")
     print()
@@ -63,7 +72,7 @@ async def pattern_taskgroup():
         task2 = tg.create_task(call_api("프로필", 1.0))
         task3 = tg.create_task(call_api("설정", 0.8))
 
-    # TaskGroup 블록을 나오면 모든 task가 완료된 상태
+    # TaskGroup 블록을 정상적으로 빠져나왔다는 것은 모든 task가 완료되었다는 뜻입니다.
     print(f"  결과1: {task1.result()}")
     print(f"  결과2: {task2.result()}")
     print(f"  결과3: {task3.result()}")
@@ -73,10 +82,10 @@ async def pattern_taskgroup():
 # ============================================================
 # 패턴 3: async with — 비동기 컨텍스트 매니저
 # ============================================================
-# MCP 클라이언트 등에서 자주 사용하는 패턴입니다.
+# MCP 클라이언트, DB 연결, HTTP 세션처럼 열고 닫아야 하는 리소스에서 자주 씁니다.
 
 class AsyncConnection:
-    """비동기 연결 시뮬레이션 (MCP 서버 연결과 유사)"""
+    """비동기 연결 시뮬레이션. 실제 MCP 서버 연결과 비슷한 모양입니다."""
 
     def __init__(self, server: str):
         self.server = server
@@ -89,7 +98,7 @@ class AsyncConnection:
         return self
 
     async def __aexit__(self, *args):
-        """연결 종료 (async with 탈출 시 — 에러가 나도 반드시 실행)"""
+        """연결 종료. async with 블록 안에서 에러가 나도 호출됩니다."""
         print(f"  🔌 {self.server} 연결 해제")
 
     async def query(self, q: str) -> str:
@@ -99,13 +108,13 @@ class AsyncConnection:
 
 async def pattern_async_with():
     """
-    async with: 리소스 연결/해제를 자동으로 관리
-    → DB 연결, MCP 서버 세션, 파일 핸들 등에 사용
+    async with: 리소스 연결/해제를 자동으로 관리합니다.
+    연결을 열고 닫는 코드가 한 블록 안에 모여 실수를 줄입니다.
     """
     print("[패턴 3] async with (비동기 컨텍스트 매니저)")
     print()
 
-    # with 블록을 나가면 자동으로 연결이 해제됨 (에러가 나도!)
+    # with 블록을 나가면 자동으로 연결이 해제됩니다. 블록 안에서 에러가 나도 마찬가지입니다.
     async with AsyncConnection("MCP서버") as conn:
         result = await conn.query("도구 목록")
         print(f"  결과: {result}")

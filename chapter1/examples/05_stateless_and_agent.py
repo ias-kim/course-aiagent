@@ -1,7 +1,7 @@
 """
 Chapter 1-5: LLM은 기억하지 못한다 → Agent의 필요성
 
-LLM API 호출은 기본적으로 서로 독립적입니다 (stateless).
+LLM API 호출은 기본적으로 서로 독립적입니다(stateless).
 이전 대화를 기억하지 못하기 때문에, 대화 맥락을 유지하려면
 우리가 직접 메시지 히스토리를 관리해야 합니다.
 
@@ -25,6 +25,7 @@ print("1부: LLM은 기억하지 못한다")
 print("=" * 60)
 
 # 첫 번째 호출: 모델에게 이름을 알려줍니다.
+# 이 요청 안에서는 모델이 "영찬"이라는 정보를 볼 수 있습니다.
 response1 = client.messages.create(
     model=MODEL,
     max_tokens=256,
@@ -35,8 +36,8 @@ response1 = client.messages.create(
 print(f"[1번 호출] 사용자: 내 이름은 영찬이야. 기억해줘!")
 print(f"[1번 호출] Claude: {response1.content[0].text}")
 
-# 두 번째 호출: 다시 이름을 물어봅니다. 이전 요청과 연결하지 않으면 기억하지 못합니다.
-# API 입장에서는 방금 전 호출과 완전히 별개의 새 요청이기 때문입니다.
+# 두 번째 호출: 다시 이름을 물어봅니다.
+# 이전 요청을 messages에 넣지 않았기 때문에, API 입장에서는 완전히 새로운 요청입니다.
 response2 = client.messages.create(
     model=MODEL,
     max_tokens=256,
@@ -52,7 +53,8 @@ print(f"[2번 호출] Claude: {response2.content[0].text}")
 # 2부: 메시지 히스토리로 기억 만들기
 # ============================================================
 # 해결책은 이전 대화를 messages에 함께 넣어 보내는 것입니다.
-# 정확히 말하면 LLM이 기억하는 것이 아니라, 매 호출마다 전체 대화를 다시 읽는 방식입니다.
+# 정확히 말하면 LLM이 스스로 기억하는 것이 아니라,
+# 매 호출마다 우리가 전체 대화를 다시 보여주는 방식입니다.
 print()
 print("=" * 60)
 print("2부: 메시지 히스토리로 기억 만들기")
@@ -98,6 +100,7 @@ while True:
     conversation_history.append({"role": "user", "content": user_input})
 
     # 누적된 전체 히스토리를 함께 보내야 모델이 대화 맥락을 이해합니다.
+    # 히스토리를 보내지 않으면 매번 1부처럼 독립적인 새 대화가 됩니다.
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
