@@ -70,9 +70,10 @@ LLM을 정밀하게 제어하는 기법을 배웁니다. Agent의 "두뇌 설계
 | `06_prefill_stop_sequences.py` | Prefill + stop_sequences | 응답 시작/끝 강제 (레거시 기법, Sonnet 4.5) |
 | `07_structured_outputs.py` | Structured Outputs | JSON 스키마·enum으로 출력 보장 (현대식, 권장) |
 | `08_parse_pydantic.py` | 실무형 검증 | `messages.parse()` + Pydantic 재검증, stop_reason·예외 경계 방어 |
+| `09_production_call_llm.py` | 실무 종합 (스타일 가이드) | 경계 계층 + Pydantic 결합, Literal 에러 코드, fail fast, 가이드라인 10계 |
 
-> 01~05는 프롬프트 기법, 06~08은 출력 제어를 API 기능으로 확장하는 아크입니다:
-> 프롬프트로 부탁(04) → 기계적 차단(06, 레거시) → API 보장(07) → 검증·방어(08).
+> 01~05는 프롬프트 기법, 06~09는 출력 제어를 API 기능으로 확장하는 아크입니다:
+> 프롬프트로 부탁(04) → 기계적 차단(06, 레거시) → API 보장(07) → 검증·방어(08) → 실무 종합(09).
 
 #### 실습 코드 (`chapter2/practices/`)
 
