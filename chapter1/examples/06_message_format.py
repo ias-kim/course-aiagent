@@ -29,6 +29,7 @@ MODEL = "claude-sonnet-4-6"
 #   content = 무엇을 말했는가
 print("=" * 60)
 print("1부: 요청(Request) 메시지 포맷")
+print("관찰 포인트: messages는 시간순 role/content 딕셔너리 리스트입니다.")
 print("=" * 60)
 
 # 가장 단순한 형태는 user 메시지 하나만 보내는 것입니다.

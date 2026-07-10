@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <h1>Model Playground</h1>
-        <p class="subtitle">Claude 모델과 파라미터를 바꿔가며 응답 차이를 비교해보세요</p>
+        <p class="subtitle">같은 질문을 유지하고 한 번에 한 설정만 바꿔 응답 차이를 비교해보세요</p>
 
         <!-- 모델과 생성 파라미터를 조절하는 패널 -->
         <div class="settings">
@@ -25,17 +25,17 @@
             </div>
             <div class="setting-row">
                 <div class="setting-group">
-                    <label for="temperature">Temperature: <span id="temp-value">1.0</span></label>
+                    <label for="temperature">Temperature (출력 다양성): <span id="temp-value">1.0</span></label>
                     <input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0">
                     <div class="range-labels">
-                        <span>정확한 (0)</span><span>창의적 (1)</span>
+                        <span>더 일관적 (0)</span><span>더 다양함 (1)</span>
                     </div>
                 </div>
                 <div class="setting-group">
-                    <label for="max-tokens">Max Tokens: <span id="tokens-value">1024</span></label>
+                    <label for="max-tokens">Max Tokens (출력 상한): <span id="tokens-value">1024</span></label>
                     <input type="range" id="max-tokens" min="64" max="4096" step="64" value="1024">
                     <div class="range-labels">
-                        <span>짧게 (64)</span><span>길게 (4096)</span>
+                        <span>작은 상한 (64)</span><span>큰 상한 (4096)</span>
                     </div>
                 </div>
             </div>
@@ -46,7 +46,7 @@
 
         <!-- 사용자 메시지 입력 영역 -->
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="메시지를 입력하세요..." autofocus>
+            <input type="text" id="user-input" placeholder="예: 대학생에게 양자컴퓨터를 세 문장으로 설명해줘" autofocus>
             <button id="send-btn">전송</button>
             <button id="reset-btn" class="btn-reset">초기화</button>
         </div>
@@ -81,7 +81,7 @@
         function addStats(inputTokens, outputTokens, elapsed) {
             const div = document.createElement('div');
             div.className = 'stats';
-            div.textContent = `⏱ ${elapsed}s · 입력 ${inputTokens} + 출력 ${outputTokens} = ${inputTokens + outputTokens} 토큰`;
+            div.textContent = `이번 호출 · 전체 생성 시간 ${elapsed}s · 입력 ${inputTokens}토큰 · 출력 ${outputTokens}토큰 · 합계 ${inputTokens + outputTokens}토큰`;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }

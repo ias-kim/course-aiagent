@@ -4,6 +4,10 @@
 활용 기법: Prompt Chaining + Prompt Template
 파이프라인: 원문 → 번역 → 요약 → 키워드 추출 → 감성 분석 (순차 체인)
 실행: python chapter2/practices/p02_news_pipeline/app.py → http://localhost:5002
+
+관찰 포인트:
+    각 단계는 원문을 다시 읽지 않고 바로 앞 단계의 출력만 입력으로 받습니다.
+    따라서 앞 단계에서 빠진 정보는 뒤 단계에서 복구하기 어렵습니다.
 """
 
 import json
@@ -29,7 +33,7 @@ def call_llm(system: str, user_message: str) -> str:
     return response.content[0].text
 
 
-# 파이프라인 단계 정의입니다. 각 단계의 system 문장이 하나의 Prompt Template입니다.
+# 파이프라인 단계 정의입니다. 각 system 문자열이 재사용 가능한 Prompt Template입니다.
 # {language}, {length} 자리에는 화면에서 고른 사용자 옵션이 들어갑니다.
 PIPELINE_STEPS = [
     {
@@ -77,7 +81,8 @@ def analyze():
 
             yield f"data: {json.dumps({'step': i + 1, 'name': step['name'], 'status': 'done', 'result': result})}\n\n"
 
-            # 방금 나온 결과를 다음 단계 입력으로 넘겨 체인을 이어갑니다.
+            # 방금 나온 결과만 다음 단계 입력으로 넘깁니다.
+            # 이 단순 체인은 정보 손실이 누적될 수 있다는 점도 함께 관찰합니다.
             current_text = result
 
         yield f"data: {json.dumps({'done': True})}\n\n"

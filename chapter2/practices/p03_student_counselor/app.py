@@ -3,6 +3,10 @@
 
 활용 기법: 조건부 템플릿 + 역할 고정/가드레일 + Extended Thinking + Few-shot
 실행: python chapter2/practices/p03_student_counselor/app.py → http://localhost:5003
+
+학습 포인트:
+    학과·학년 값으로 System Prompt를 조립하고, 일반 응답과 adaptive thinking을 비교합니다.
+    프롬프트 가드레일은 1차 방어이며 실제 권한 검사를 대신하지 않습니다.
 """
 
 import json
@@ -117,11 +121,12 @@ def chat():
 
     def generate():
         if use_thinking:
-            # Extended Thinking 모드: 모델이 내부 추론을 한 뒤 결론을 반환합니다.
+            # adaptive thinking: 모델이 문제 난이도에 따라 thinking 사용량을 결정합니다.
+            # thinking 블록에는 전체 내부 사고가 아니라 API가 제공하는 추론 요약이 담깁니다.
             response = client.messages.create(
                 model=MODEL,
                 max_tokens=16000,
-                thinking={"type": "enabled", "budget_tokens": 8000},
+                thinking={"type": "adaptive"},
                 system=system,
                 messages=messages,
             )

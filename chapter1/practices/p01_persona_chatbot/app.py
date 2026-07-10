@@ -2,8 +2,8 @@
 실습 P01: 페르소나 챗봇
 
 페르소나(Persona)란?
-    AI에게 입히는 "역할 설정"입니다.
-    동일한 LLM이라도 페르소나에 따라 말투, 지식 범위, 응답 스타일이 완전히 달라집니다.
+    모델 자체를 다시 학습시키지 않고 System Prompt로 지정하는 "역할 설정"입니다.
+    동일한 LLM과 질문이라도 페르소나에 따라 말투, 설명 방식, 답변 범위가 달라집니다.
 
 AI Agent에서 페르소나를 만들 때는 보통 System Prompt에 아래 4가지를 넣습니다.
 
@@ -79,6 +79,7 @@ PERSONAS = {
 }
 
 # 세션별 대화 히스토리입니다. 실습용이라 서버 메모리에만 저장합니다.
+# 서버를 재시작하면 사라지고, 여러 프로세스로 실행하면 서로 공유되지 않습니다.
 conversations: dict[str, list] = {}
 
 
@@ -97,6 +98,8 @@ def chat():
         서버가 브라우저로 데이터를 실시간 전송하는 단방향 스트리밍 방식입니다.
         Claude의 스트리밍 응답을 토큰 단위로 브라우저에 전달할 수 있습니다.
     """
+    # 브라우저가 보내는 JSON은 아래 세 값을 담습니다.
+    # persona는 System Prompt 선택, message는 현재 질문, session_id는 대화 구분에 씁니다.
     data = request.json
     persona_id = data["persona"]
     user_message = data["message"]
@@ -129,7 +132,8 @@ def chat():
             # 응답이 끝난 뒤 assistant 메시지를 히스토리에 저장합니다.
             history.append({"role": "assistant", "content": full_response})
 
-            # 브라우저에 토큰 사용량도 함께 알려줍니다.
+            # 브라우저에 '이번 API 호출'의 토큰 사용량도 함께 알려줍니다.
+            # 대화가 길어지면 history 전체를 다시 보내므로 input_tokens가 증가합니다.
             usage = stream.get_final_message().usage
             yield f"data: {json.dumps({'done': True, 'input_tokens': usage.input_tokens, 'output_tokens': usage.output_tokens})}\n\n"
 

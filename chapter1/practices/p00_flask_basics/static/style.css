@@ -1,0 +1,12 @@
+/* static/ 폴더의 파일입니다. 템플릿에서 url_for('static', ...)로 연결합니다. */
+body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.05rem; margin-bottom: 8px; }
+.hi { color: #2e7d32; }
+.flow { background: #eef6ff; border-left: 4px solid #1565c0; padding: 10px 12px; }
+section { border: 1px solid #ddd; border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+button { padding: 4px 14px; cursor: pointer; }
+.out { background: #f7f7f7; color: #1565c0; padding: 10px; white-space: pre-wrap; }
+.hint { color: #666; font-size: 0.9rem; }
+code { background: #f0f0f0; padding: 1px 5px; border-radius: 4px; }
+a { display: inline-block; margin: 6px 10px 0 0; }

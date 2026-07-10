@@ -30,7 +30,7 @@
 <body>
     <div class="container">
         <h1>뉴스 요약 파이프라인</h1>
-        <p class="subtitle">영문 기사 → 번역 → 요약 → 키워드 → 감성 분석 (4단계 Prompt Chaining)</p>
+        <p class="subtitle">각 단계의 출력이 바로 다음 단계의 입력이 되는 4단계 Prompt Chaining</p>
 
         <div class="options">
             <div><label>번역 언어</label><br>
@@ -49,7 +49,7 @@
             </div>
         </div>
 
-        <textarea id="article" placeholder="영문 기사를 붙여넣으세요...">Artificial intelligence is transforming how we approach software development. Large language models can now write code, review pull requests, and even debug complex systems. However, the key challenge remains: ensuring AI-generated code is reliable, secure, and maintainable in production environments. Companies are investing heavily in AI coding assistants, with some reporting up to 40% productivity gains for routine tasks.</textarea>
+        <textarea id="article" placeholder="분석할 영문 기사 원문을 입력하세요.">Artificial intelligence is transforming how we approach software development. Large language models can now write code, review pull requests, and even debug complex systems. However, the key challenge remains: ensuring AI-generated code is reliable, secure, and maintainable in production environments. Companies are investing heavily in AI coding assistants, with some reporting up to 40% productivity gains for routine tasks.</textarea>
         <br>
         <button id="run-btn" onclick="runPipeline()">파이프라인 실행</button>
 
@@ -71,7 +71,7 @@
             pipeline.innerHTML = stepNames.map((name, i) =>
                 `${i > 0 ? '<div class="arrow">↓</div>' : ''}
                  <div class="step" id="step-${i + 1}">
-                    <div class="step-header">[${i + 1}단계] ${name}</div>
+                    <div class="step-header">${i + 1}단계 · ${name}</div>
                     <div class="step-result"></div>
                  </div>`
             ).join('');
@@ -102,7 +102,8 @@
 
                         if (data.step && data.status === 'start') {
                             document.getElementById(`step-${data.step}`).className = 'step running';
-                            document.querySelector(`#step-${data.step} .step-result`).textContent = '처리 중...';
+                            document.querySelector(`#step-${data.step} .step-result`).textContent =
+                                data.step === 1 ? '원문을 입력으로 처리 중...' : '이전 단계 결과를 입력으로 처리 중...';
                         }
                         if (data.step && data.status === 'done') {
                             const stepEl = document.getElementById(`step-${data.step}`);
@@ -112,7 +113,7 @@
                     }
                 }
             } catch (e) {
-                pipeline.innerHTML += '<div style="color:#c53534;margin-top:12px;">[오류] 파이프라인 실행 실패</div>';
+                pipeline.innerHTML += '<div style="color:#c53534;margin-top:12px;">파이프라인을 완료하지 못했습니다. 서버 상태를 확인한 뒤 다시 시도하세요.</div>';
             }
             btn.disabled = false;
         }

@@ -127,6 +127,7 @@ except AuthenticationError as e:
 print()
 print("=" * 60)
 print("2부: Exponential Backoff 재시도")
+print("관찰 포인트: 재시도 횟수는 '추가 시도' 수이며, 모든 오류를 재시도하지 않습니다.")
 print("=" * 60)
 
 

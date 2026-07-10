@@ -42,6 +42,7 @@ MODEL = "claude-sonnet-4-6"
 
 print("=" * 60)
 print("1부: System Prompt로 JSON 응답 유도")
+print("관찰 포인트: JSON처럼 보여도 json.loads() 전까지는 단순 문자열입니다.")
 print("=" * 60)
 
 # --- 예시 1: 단순 정보 추출 ---
@@ -118,6 +119,7 @@ for item in results:
 print()
 print("=" * 60)
 print("2부: 안전한 JSON 파싱")
+print("관찰 포인트: 형식 유도와 형식 보장은 다르므로 실패 경로가 필요합니다.")
 print("=" * 60)
 
 

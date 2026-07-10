@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>페르소나 챗봇</h1>
-            <p class="subtitle">System Prompt로 AI의 성격을 바꿔보세요</p>
+            <p class="subtitle">같은 질문을 세 페르소나에 보내 System Prompt의 영향을 비교해보세요</p>
         </header>
 
         <!-- 페르소나를 고르는 영역 -->
@@ -26,13 +26,13 @@
         <!-- 대화가 쌓이는 영역 -->
         <div id="chat-area" class="chat-area">
             <div id="messages" class="messages">
-                <div class="system-msg">페르소나를 선택하면 대화가 시작됩니다.</div>
+                <div class="system-msg">① 페르소나 선택 → ② 같은 질문 입력 → ③ 말투·설명 방식·답변 범위 비교</div>
             </div>
         </div>
 
         <!-- 사용자 입력 영역 -->
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="메시지를 입력하세요..." disabled
+            <input type="text" id="user-input" placeholder="예: 재귀 함수가 무엇인지 설명해줘" disabled
                    onkeydown="if(event.key === 'Enter') sendMessage()">
             <button id="send-btn" onclick="sendMessage()" disabled>전송</button>
             <button id="reset-btn" onclick="resetChat()" disabled>초기화</button>
@@ -119,7 +119,7 @@
                         }
                         if (data.done) {
                             document.getElementById('token-info').textContent =
-                                `토큰 사용량 — 입력: ${data.input_tokens} / 출력: ${data.output_tokens}`;
+                                `이번 호출의 토큰 — 입력 ${data.input_tokens} / 출력 ${data.output_tokens} · 대화가 길어지면 입력 토큰이 늘어납니다.`;
                         }
                     }
                 }
@@ -136,10 +136,18 @@
             const messages = document.getElementById('messages');
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            div.innerHTML = `
-                <span class="role">${role === 'user' ? '나' : 'AI'}</span>
-                <span class="text">${text}</span>
-            `;
+
+            // 사용자 입력을 innerHTML에 넣으면 HTML이 실행될 수 있습니다.
+            // 화면에 보여줄 문자열은 textContent로 넣는 습관을 들입니다.
+            const roleSpan = document.createElement('span');
+            roleSpan.className = 'role';
+            roleSpan.textContent = role === 'user' ? '나' : 'AI';
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'text';
+            textSpan.textContent = text;
+
+            div.append(roleSpan, textSpan);
             messages.appendChild(div);
             scrollToBottom();
             return div;
