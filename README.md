@@ -51,6 +51,7 @@ AI Agent와 LLM 사이의 기본적인 통신 방법을 배웁니다.
 
 | 폴더 | 주제 | 핵심 내용 |
 |------|------|-----------|
+| `p00_flask_basics/` | Flask 핵심 입문 | 라우트·render_template·GET/POST·request·JSON 응답 (Claude 없이 Flask만, p01·p02 선행) |
 | `p01_persona_chatbot/` | 페르소나 챗봇 | System Prompt로 AI 성격 설정, Flask + SSE 스트리밍 채팅 |
 | `p02_model_playground/` | 모델 플레이그라운드 | 모델 비교(Haiku/Sonnet/Opus), 파라미터 실험, 토큰·응답시간 측정 |
 
@@ -65,15 +66,14 @@ LLM을 정밀하게 제어하는 기법을 배웁니다. Agent의 "두뇌 설계
 | `01_few_shot.py` | Few-shot Prompting | 예시 기반 패턴 학습, Zero-shot/Few-shot 비교 |
 | `02_chain_of_thought.py` | Chain of Thought | 프롬프트 기반 CoT, Extended Thinking (Reasoning Model), Agent 패턴 |
 | `03_prompt_chaining.py` | Prompt Chaining | 작업 분할 및 연쇄, 검증 체인, 변환 체인 |
-| `04_output_control.py` | 출력 제어 | 역할 고정, 제약 조건, 가드레일 |
-| `05_prompt_template.py` | Prompt Template | 변수 치환, 컨텍스트 주입, 조건부 템플릿 |
+| `04_prompt_template.py` | Prompt Template | 변수 치환, 컨텍스트 주입, 조건부 템플릿 |
+| `05_output_control.py` | 출력 제어 | 역할 고정, 제약 조건, 가드레일 |
 | `06_prefill_stop_sequences.py` | Prefill + stop_sequences | 응답 시작/끝 강제 (레거시 기법, Sonnet 4.5) |
 | `07_structured_outputs.py` | Structured Outputs | JSON 스키마·enum으로 출력 보장 (현대식, 권장) |
-| `08_parse_pydantic.py` | 실무형 검증 | `messages.parse()` + Pydantic 재검증, stop_reason·예외 경계 방어 |
-| `09_production_call_llm.py` | 실무 종합 (스타일 가이드) | 경계 계층 + Pydantic 결합, Literal 에러 코드, fail fast, 가이드라인 10계 |
+| `08_parse_pydantic.py` | 실무형 검증 (종합) | `messages.parse()` + Pydantic 재검증, stop_reason·예외 경계 방어 |
 
-> 01~05는 프롬프트 기법, 06~09는 출력 제어를 API 기능으로 확장하는 아크입니다:
-> 프롬프트로 부탁(04) → 기계적 차단(06, 레거시) → API 보장(07) → 검증·방어(08) → 실무 종합(09).
+> 01~04는 프롬프트 작성 기법, 05~08은 출력 형식 제어를 API 기능으로 확장하는 아크입니다:
+> 프롬프트로 부탁(05) → 기계적 차단(06, 레거시) → API 보장(07) → 검증·방어(08).
 
 #### 실습 코드 (`chapter2/practices/`)
 
@@ -82,6 +82,7 @@ LLM을 정밀하게 제어하는 기법을 배웁니다. Agent의 "두뇌 설계
 | `p01_code_reviewer/` | AI 코드 리뷰어 | Few-shot + 구조 지정 CoT + 가드레일 |
 | `p02_news_pipeline/` | 뉴스 요약 파이프라인 | Prompt Chaining (4단계) + Prompt Template |
 | `p03_student_counselor/` | 학생 상담 챗봇 | 조건부 템플릿 + 역할 고정 + Extended Thinking + Few-shot |
+| `p04_review_scorer/` | 음식점 후기 평가기 | `messages.parse()` + Pydantic으로 별점·감정 JSON 보장(07·08 응용), 신뢰 경계 예외 처리, `.txt` 업로드 |
 
 ### Chapter 3: Tool Use (Function Calling)
 

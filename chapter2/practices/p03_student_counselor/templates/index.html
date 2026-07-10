@@ -38,7 +38,7 @@
 <body>
     <div class="container">
         <h1>학생 상담 챗봇</h1>
-        <p class="subtitle">학과/학년 선택 → 조건부 템플릿 + 가드레일 + Extended Thinking 종합 실습</p>
+        <p class="subtitle">학과·학년으로 달라지는 조건부 System Prompt와 adaptive thinking을 비교합니다</p>
 
         <div class="options">
             <div>
@@ -59,16 +59,16 @@
             </div>
             <div class="toggle">
                 <input type="checkbox" id="use-thinking">
-                <label for="use-thinking">Extended Thinking 활성화</label>
+                <label for="use-thinking">Adaptive Thinking 사용</label>
             </div>
         </div>
 
         <div id="chat-area" class="chat-area">
-            <div id="messages"><div class="system-msg">학과와 학년을 선택한 후 질문하세요.</div></div>
+            <div id="messages"><div class="system-msg">학과와 학년을 선택하고 수강·학교생활·진로에 관해 질문하세요.</div></div>
         </div>
 
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="상담 내용을 입력하세요..."
+            <input type="text" id="user-input" placeholder="예: 이번 학기에 어떤 과목을 먼저 들으면 좋을까요?"
                    onkeydown="if(event.key === 'Enter') sendMessage()">
             <button id="send-btn" onclick="sendMessage()">전송</button>
             <button class="reset" onclick="resetChat()">초기화</button>
@@ -131,13 +131,13 @@
                         }
                         if (data.done) {
                             document.getElementById('token-info').textContent =
-                                `토큰 — 입력: ${data.input_tokens} / 출력: ${data.output_tokens}`;
+                                `이번 호출의 토큰 · 입력 ${data.input_tokens} / 출력 ${data.output_tokens}`;
                         }
                     }
                 }
             } catch (e) {
                 if (!assistantDiv) assistantDiv = appendMessage('assistant', '');
-                assistantDiv.querySelector('.text').textContent = '[오류] 응답 실패';
+                assistantDiv.querySelector('.text').textContent = '상담 답변을 받지 못했습니다. 서버 연결과 API 키를 확인하세요.';
             }
             input.disabled = false;
             document.getElementById('send-btn').disabled = false;
@@ -148,8 +148,14 @@
             const messages = document.getElementById('messages');
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            const labels = { user: '나', assistant: '상담봇', thinking: '생각 중...' };
-            div.innerHTML = `<span class="role">${labels[role]}</span><span class="text">${text}</span>`;
+            const labels = { user: '학생', assistant: '상담 답변', thinking: '추론 요약' };
+            const roleSpan = document.createElement('span');
+            roleSpan.className = 'role';
+            roleSpan.textContent = labels[role];
+            const textSpan = document.createElement('span');
+            textSpan.className = 'text';
+            textSpan.textContent = text;
+            div.append(roleSpan, textSpan);
             messages.appendChild(div);
             scrollToBottom();
             return div;
@@ -166,7 +172,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sessionId }),
             });
-            document.getElementById('messages').innerHTML = '<div class="system-msg">학과와 학년을 선택한 후 질문하세요.</div>';
+            document.getElementById('messages').innerHTML = '<div class="system-msg">대화가 초기화되었습니다. 새로운 상담 질문을 입력하세요.</div>';
             document.getElementById('token-info').textContent = '';
         }
     </script>

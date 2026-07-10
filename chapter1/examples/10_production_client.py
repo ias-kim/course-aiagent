@@ -6,7 +6,7 @@ Chapter 1-10: 실무형 API 호출 함수 만들기 (종합)
 곳곳에 흩어집니다. 실무에서는 보통 LLM 호출 경계를 함수 하나로 모아 둡니다.
 
 이 파일의 목표는 "텍스트 응답을 받는 기본형 call_llm()"입니다.
-구조화 출력과 Pydantic 검증까지 포함한 완성판은 chapter2/09에서 이어집니다.
+구조화 출력과 Pydantic 검증까지 결합한 실무형은 chapter2/08에서 이어집니다.
 
 앞에서 배운 내용과 연결하면:
     - 07_error_handling:  예외 타입 구분, 재시도
@@ -152,6 +152,7 @@ async def main():
 
     print("=" * 60)
     print("1) 정상 호출 — 여러 개를 동시에 (Semaphore가 개수 제한)")
+    print("관찰 포인트: 호출자는 SDK 예외 대신 동일한 LLMResult 인터페이스를 봅니다.")
     print("=" * 60)
     questions = [
         "파이썬이 뭐야? 한 문장으로.",
@@ -164,7 +165,8 @@ async def main():
         status = "성공" if r.ok else r.error
         print(f"  [{status}] {q}")
         if r.ok:
-            print(f"         → {r.text[:60]}")
+            preview = r.text.replace("\n", " ")[:60]
+            print(f"         → {preview}")
 
     print()
     print("=" * 60)
@@ -197,7 +199,7 @@ async def main():
     - 긴 생성      → messages.stream() + read 타임아웃 (chapter1/09 3부)
                      스트리밍은 별도 함수로 분리 (한 함수에 다 넣지 않기)
 
-  Pydantic 검증까지 결합한 완성판 가이드 → chapter2/09_production_call_llm.py
+  Pydantic 검증까지 결합한 실무형 → chapter2/08_parse_pydantic.py
 """)
 
 

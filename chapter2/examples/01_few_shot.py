@@ -16,8 +16,8 @@ In-context Learning이란?
   매번 호출할 때마다 예시를 함께 보내야 동일한 효과를 얻을 수 있습니다.
 
 Agent에서의 활용:
-  입력 → 출력 패턴을 예시로 정의하면, 별도 파싱 로직 없이도
-  LLM이 일관된 형식으로 응답하게 만들 수 있습니다.
+  입력 → 출력 패턴을 예시로 정의하면 응답의 일관성을 높일 수 있습니다.
+  다만 예시는 형식을 보장하지 않으므로, 코드에서는 여전히 검증이 필요합니다.
 """
 
 from dotenv import load_dotenv
@@ -36,6 +36,7 @@ MODEL = "claude-sonnet-4-6"
 
 print("=" * 60)
 print("1부: Zero-shot vs Few-shot 비교")
+print("관찰 포인트: 지시는 같고, 예시 제공 여부만 다릅니다.")
 print("=" * 60)
 
 target_text = "배송이 하루만에 왔는데 포장이 찢어져 있었어요"
@@ -87,6 +88,7 @@ print(f"응답: {response.content[0].text}")
 print()
 print("=" * 60)
 print("2부: Few-shot으로 출력 형식 통제")
+print("관찰 포인트: 예시는 설명보다 원하는 입출력 패턴을 구체적으로 보여줍니다.")
 print("=" * 60)
 
 print("\n--- 키워드 추출 (태그 형식) ---")

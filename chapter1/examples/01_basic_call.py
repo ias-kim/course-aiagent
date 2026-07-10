@@ -51,13 +51,13 @@ response = client.messages.create(
 # 3. 응답 구조 확인
 # response는 단순 문자열이 아니라 id, 모델명, 종료 이유, 토큰 사용량 등을 가진
 # 객체입니다. 실제 앱에서는 텍스트뿐 아니라 stop_reason과 usage도 자주 확인합니다.
-print("=== 전체 응답 객체 ===")
+print("=== 1) 응답 메타데이터: 운영/디버깅에 사용하는 값 ===")
 print(f"ID: {response.id}")
 print(f"모델: {response.model}")
 print(f"종료 이유: {response.stop_reason}")
 print(f"토큰 사용량: 입력 {response.usage.input_tokens}, 출력 {response.usage.output_tokens}")
 
-print("\n=== 응답 텍스트 ===")
+print("\n=== 2) 사용자에게 보여줄 텍스트 ===")
 print(response.content[0].text)
 
 
@@ -92,7 +92,8 @@ print(response.content[0].text)
 #       - name: 호출할 도구 이름
 #       - input: 도구에 전달할 인자 (dict)
 #
-#       일반 텍스트 답변만 받을 때는 보통 content[0].text로 읽으면 됩니다.
+#       이 예제처럼 텍스트 블록 하나만 기대할 때는 content[0].text로 읽을 수 있습니다.
+#       도구 호출 등이 섞일 수 있는 앱에서는 type == "text"인 블록을 골라야 합니다.
 #   - usage: 토큰 사용량
 #       - usage.input_tokens: 입력에 사용된 토큰 수
 #       - usage.output_tokens: 출력에 사용된 토큰 수

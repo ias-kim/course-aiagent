@@ -4,9 +4,14 @@
 Claude API의 여러 모델과 파라미터를 직접 비교해 보는 웹 앱입니다.
 
 학습 목표:
-    - 모델별 특성 차이를 체감한다 (속도, 품질, 비용 감각)
-    - temperature, max_tokens 등 파라미터가 응답에 미치는 영향을 실험한다
+    - 같은 프롬프트로 모델별 응답과 소요 시간의 차이를 관찰한다
+    - temperature, max_tokens가 응답에 미치는 영향을 한 번에 하나씩 실험한다
     - 토큰 사용량과 응답 시간을 확인하며 API 비용 감각을 익힌다
+
+공정한 비교 방법:
+    1) 같은 질문을 사용한다.
+    2) 비교하려는 항목 하나만 바꾼다.
+    3) 생성 결과에는 무작위성이 있으므로 여러 번 반복한다.
 
 모델 비교:
     ┌──────────────┬──────────┬──────────┬────────────────────┐
@@ -63,6 +68,8 @@ def chat():
     data = request.json
     model_key = data["model"]
     user_message = data["message"]
+    # temperature는 출력 다양성, max_tokens는 최대 출력 토큰 상한입니다.
+    # 둘 다 응답 품질이나 실제 길이를 직접 보장하는 값은 아닙니다.
     temperature = float(data.get("temperature", 1.0))
     max_tokens = int(data.get("max_tokens", 1024))
     session_id = data.get("session_id", "default")
@@ -77,7 +84,8 @@ def chat():
     model_id = MODELS[model_key]["id"]
 
     def generate():
-        start_time = time.time()
+        # 이 시간은 서버가 SDK 호출을 시작한 시점부터 스트림이 끝날 때까지의 총시간입니다.
+        start_time = time.perf_counter()
 
         with client.messages.stream(
             model=model_id,
@@ -92,7 +100,7 @@ def chat():
 
             history.append({"role": "assistant", "content": full_response})
 
-            elapsed = round(time.time() - start_time, 2)
+            elapsed = round(time.perf_counter() - start_time, 2)
             usage = stream.get_final_message().usage
             yield f"data: {json.dumps({'done': True, 'input_tokens': usage.input_tokens, 'output_tokens': usage.output_tokens, 'elapsed': elapsed})}\n\n"
 

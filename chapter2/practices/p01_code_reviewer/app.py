@@ -1,8 +1,13 @@
 """
 실습 P01: AI 코드 리뷰어
 
-활용 기법: Few-shot + 구조 지정 CoT + 가드레일
+활용 기법: Few-shot + 출력 구조 지정 + 프롬프트 가드레일
 실행: python chapter2/practices/p01_code_reviewer/app.py → http://localhost:5004
+
+학습 포인트:
+    - Few-shot 예시로 리뷰 형식을 보여준다.
+    - System Prompt로 리뷰 범위와 출력 항목을 지정한다.
+    - 프롬프트 제약은 형식을 유도할 뿐, 코드 안전성을 보장하지 않는다.
 """
 
 import json
@@ -16,8 +21,8 @@ app = Flask(__name__)
 client = Anthropic()
 MODEL = "claude-sonnet-4-6"
 
-# 구조 지정 CoT와 가드레일을 함께 넣은 System Prompt입니다.
-# 리뷰 범위와 출력 형식을 고정해 화면에서 일관되게 보여주기 위함입니다.
+# 리뷰 범위와 출력 구조를 지정한 System Prompt입니다.
+# [분석]은 모델의 비공개 사고 과정이 아니라 사용자에게 보여줄 코드 요약입니다.
 SYSTEM_PROMPT = """당신은 시니어 Python 코드 리뷰어입니다.
 
 리뷰 규칙:
@@ -80,7 +85,8 @@ def chat():
     history = conversations[session_id]
     history.append({"role": "user", "content": user_message})
 
-    # Few-shot 예시를 대화 앞에 붙여 모델이 같은 리뷰 형식을 따르게 합니다.
+    # Few-shot 예시를 대화 앞에 붙여 원하는 입력→출력 패턴을 보여줍니다.
+    # 예시는 형식을 보장하지 않으므로 실제 서비스라면 결과 검증이 추가로 필요합니다.
     messages = FEW_SHOT_EXAMPLES + history
 
     def generate():

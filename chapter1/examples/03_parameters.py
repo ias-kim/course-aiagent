@@ -39,19 +39,20 @@ print("\n[max_tokens=500]")
 print(call_claude("Python의 장점 5가지를 설명해주세요.", max_tokens=500))
 
 # --- 실험 2: temperature 비교 ---
-# temperature는 정답의 "품질" 스위치가 아니라 표현의 다양성을 조절하는 값입니다.
+# temperature는 정답의 "품질"이나 창의성을 보장하는 스위치가 아니라,
+# 다음 토큰을 선택할 때 확률 분포를 얼마나 다양하게 사용할지 조절하는 값입니다.
 # temperature=0.0 → 가장 보수적. 같은 질문에 비슷한 답을 기대할 때 사용
 # temperature=1.0 → 표현이 더 다양해짐. 아이디어 생성이나 글쓰기 실험에 적합
 print("\n=== temperature 실험 ===")
 
 creative_prompt = "'인공지능'을 주제로 한 줄 시를 써주세요."
 
-print("\n[temperature=0.0] 동일 프롬프트 3회 호출:")
+print("\n[temperature=0.0] 동일 프롬프트 3회 호출 (비슷한 표현이 나오는지 관찰):")
 for i in range(3):
     result = call_claude(creative_prompt, temperature=0.0, max_tokens=100)
     print(f"  {i + 1}: {result}")
 
-print("\n[temperature=1.0] 동일 프롬프트 3회 호출:")
+print("\n[temperature=1.0] 동일 프롬프트 3회 호출 (표현 다양성이 커지는지 관찰):")
 for i in range(3):
     result = call_claude(creative_prompt, temperature=1.0, max_tokens=100)
     print(f"  {i + 1}: {result}")
