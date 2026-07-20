@@ -5,6 +5,9 @@ Agent와 LLM 사이에 오가는 메시지의 실제 모양을 확인합니다.
 - 우리가 보내는 요청(Request)의 정확한 형태
 - LLM이 돌려주는 응답(Response)의 정확한 형태
 - 멀티턴 대화에서 메시지가 어떻게 쌓이는지
+
+이 파일은 "대화 기억"이 실제로 messages 리스트에 어떻게 저장되는지
+눈으로 확인하는 예제입니다.
 """
 
 import json
@@ -21,7 +24,9 @@ MODEL = "claude-sonnet-4-6"
 # 1부: 요청(Request) 메시지 포맷
 # ============================================================
 # API에 보내는 messages는 딕셔너리로 된 리스트입니다.
-# 각 메시지에는 누가 말했는지(role)와 무엇을 말했는지(content)가 들어갑니다.
+# 각 메시지는 한 번의 발화이고, role과 content를 가집니다.
+#   role    = 누가 말했는가 ("user" 또는 "assistant")
+#   content = 무엇을 말했는가
 print("=" * 60)
 print("1부: 요청(Request) 메시지 포맷")
 print("=" * 60)
@@ -53,6 +58,7 @@ print("2부: 응답(Response) 객체 전체 구조")
 print("=" * 60)
 
 # response 객체를 딕셔너리로 바꿔 전체 구조를 눈으로 확인합니다.
+# 처음에는 복잡해 보이지만, 자주 쓰는 값은 content, stop_reason, usage 정도입니다.
 response_dict = json.loads(response.to_json())
 print(json.dumps(response_dict, ensure_ascii=False, indent=2))
 
@@ -80,7 +86,8 @@ print(json.dumps(response_dict, ensure_ascii=False, indent=2))
 # 3부: 멀티턴 대화의 메시지 흐름
 # ============================================================
 # 대화가 이어질수록 messages 리스트에는 user와 assistant 메시지가 차례대로 쌓입니다.
-# 매 요청마다 이 전체 히스토리를 보내야 모델이 맥락을 따라올 수 있습니다.
+# 모델은 서버 어딘가에 이 대화를 저장해 두지 않습니다.
+# 그래서 매 요청마다 이 전체 히스토리를 다시 보내야 맥락을 따라올 수 있습니다.
 print()
 print("=" * 60)
 print("3부: 멀티턴 대화의 메시지 흐름")

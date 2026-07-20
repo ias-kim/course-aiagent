@@ -2,6 +2,9 @@
 Chapter 1-1: Claude API 기본 호출
 
 Claude API를 가장 작은 단위로 호출해 봅니다.
+이 파일의 목표는 "요청을 보내고, 응답 객체에서 텍스트와 사용량을 읽는 흐름"을
+한 번에 눈으로 확인하는 것입니다.
+
 - Anthropic 클라이언트 생성
 - messages.create()로 메시지 전송
 - 응답 객체에서 필요한 값 읽기
@@ -15,18 +18,23 @@ load_dotenv()
 print(os.environ["ANTHROPIC_API_KEY"])
 
 # 1. 클라이언트 생성
-# .env에 있는 ANTHROPIC_API_KEY를 자동으로 읽어 인증합니다.
+# load_dotenv()가 .env 파일을 읽고, Anthropic()은 ANTHROPIC_API_KEY 환경변수로
+# 자동 인증합니다. API 키를 코드에 직접 쓰지 않는 것이 기본 원칙입니다.
 client = Anthropic()
 
 
 # 2. 메시지 전송
-# messages.create()에는 "어떤 모델에게", "얼마나 길게", "무슨 말을 보낼지"를 넣습니다.
+# messages.create()에는 최소한 다음 3가지를 넣습니다.
+#   1) 어떤 모델에게 요청할지
+#   2) 답변을 최대 얼마나 길게 받을지
+#   3) 사용자 메시지가 무엇인지
+#
 # 주요 파라미터:
 #   - model (필수): 사용할 모델의 ID
 #       1) "claude-sonnet-4-6": 속도와 성능의 균형 (가장 많이 사용)
 #       2) "claude-haiku-4-5-20251001": 빠르고 저렴, 간단한 작업에 적합
 #       3) "claude-opus-4-8": 최고 성능, 복잡한 추론에 적합
-#   - max_tokens (필수): 답변을 최대 몇 토큰까지 생성할지 정하는 상한
+#   - max_tokens (필수): "출력"을 최대 몇 토큰까지 생성할지 정하는 상한
 #   - messages (필수): 대화 메시지 리스트
 #       1) role: "user"(사용자) 또는 "assistant"(AI) - 누가 말했는지 표시
 #       2) content: 메시지 내용 (문자열 또는 콘텐츠 블록 리스트)
@@ -41,7 +49,8 @@ response = client.messages.create(
 )
 
 # 3. 응답 구조 확인
-# response는 단순 문자열이 아니라 id, 모델명, 토큰 사용량 등을 가진 객체입니다.
+# response는 단순 문자열이 아니라 id, 모델명, 종료 이유, 토큰 사용량 등을 가진
+# 객체입니다. 실제 앱에서는 텍스트뿐 아니라 stop_reason과 usage도 자주 확인합니다.
 print("=== 전체 응답 객체 ===")
 print(f"ID: {response.id}")
 print(f"모델: {response.model}")
@@ -59,7 +68,7 @@ print(response.content[0].text)
 #   - 대략 영어 기준 1토큰 ≈ 4글자, 한국어 기준 1토큰 ≈ 1~2글자
 #   - input_tokens: 우리가 보낸 메시지를 토큰으로 센 값 → 입력 비용과 관련
 #   - output_tokens: 모델이 만든 답변을 토큰으로 센 값 → 출력 비용과 관련
-#   - max_tokens: 출력 토큰 상한. 이 값이 너무 작으면 답변이 중간에 끊길 수 있음
+#   - max_tokens: 출력 토큰 상한. 너무 작으면 답변이 중간에 끊길 수 있음
 
 # response 객체의 주요 속성:
 #   - id: 요청의 고유 식별자 (예: "msg_01XFDUDYJgAACzvnptvVoYEL")
@@ -83,7 +92,7 @@ print(response.content[0].text)
 #       - name: 호출할 도구 이름
 #       - input: 도구에 전달할 인자 (dict)
 #
-#       일반 텍스트 답변만 받을 때는 보통 content[0].text로 읽으면 됨
+#       일반 텍스트 답변만 받을 때는 보통 content[0].text로 읽으면 됩니다.
 #   - usage: 토큰 사용량
 #       - usage.input_tokens: 입력에 사용된 토큰 수
 #       - usage.output_tokens: 출력에 사용된 토큰 수

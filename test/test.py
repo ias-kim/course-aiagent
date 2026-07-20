@@ -1,6 +1,7 @@
 import asyncio
 
-async def bar(): # 타입 코루틴 함수
-    return "bar" 
+async def main():
+    ...
 
-print(type(bar()))
+if __name__ == "__main__":
+    asyncio.run(main())

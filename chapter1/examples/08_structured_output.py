@@ -5,10 +5,19 @@ LLM의 기본 응답은 사람이 읽기 좋은 자연어입니다.
 하지만 Agent 코드는 응답에서 값을 꺼내 조건문, 저장, 도구 호출에 사용해야 합니다.
 그래서 JSON처럼 코드가 읽기 쉬운 형식으로 답하게 만드는 방법을 배웁니다.
 
+핵심은 두 단계입니다:
+1. 프롬프트로 원하는 형식을 강하게 요청한다.
+2. 그래도 깨질 수 있다고 보고 파싱 실패에 대비한다.
+
 왜 중요한가?
 - Agent = LLM + 코드. 코드가 응답을 파싱하려면 구조가 필요합니다.
 - 자연어 "서울은 12도이고 맑습니다" → 코드에서 온도/날씨 추출이 어려움
 - JSON {"temp": 12, "condition": "맑음"} → 바로 활용 가능
+
+참고: 이 파일은 "프롬프트로 유도 + 방어적 파싱"이라는 범용 접근을 다룹니다.
+Claude API에는 형식을 아예 보장해주는 Structured Outputs 기능이 있으며
+(chapter2/07_structured_outputs.py, 08_parse_pydantic.py), 그쪽이 실무 권장입니다.
+여기서 배우는 방어적 파싱은 그 기능이 없는 모델/프로바이더에서 여전히 필요합니다.
 """
 
 import json
@@ -25,6 +34,7 @@ MODEL = "claude-sonnet-4-6"
 # 1부: System Prompt로 JSON 응답 유도하기
 # ============================================================
 # 핵심은 System Prompt에 원하는 출력 형식을 아주 분명하게 적는 것입니다.
+# "JSON으로 답해"보다 "아래 스키마 그대로, JSON 외 텍스트 금지"가 훨씬 안정적입니다.
 #
 #   1) 원하는 JSON 스키마를 예시로 보여준다
 #   2) "반드시 JSON만 출력하라"고 명시한다
@@ -55,7 +65,8 @@ JSON 외에 다른 텍스트는 절대 포함하지 마세요.
 raw_text = response.content[0].text
 print(f"LLM 원본 응답: {raw_text}")
 
-# 문자열로 받은 JSON을 Python 객체로 파싱합니다.
+# 문자열로 받은 JSON을 Python 객체(dict)로 파싱합니다.
+# 여기서는 모델이 올바른 JSON을 냈다고 가정하고 바로 json.loads()를 사용합니다.
 data = json.loads(raw_text)
 print(f"파싱 결과: 이름={data['name']}, 나이={data['age']}, 직업={data['job']}")
 print(f"타입 확인: name={type(data['name']).__name__}, age={type(data['age']).__name__}")
@@ -103,7 +114,7 @@ for item in results:
 #   실패 원인 예시:
 #   - JSON 앞뒤에 ```json ... ``` 마크다운이 붙는 경우
 #   - 설명 텍스트가 함께 포함되는 경우
-#   - JSON 문법 오류 (trailing comma 등)
+#   - JSON 문법 오류 (마지막 쉼표, 따옴표 누락 등)
 print()
 print("=" * 60)
 print("2부: 안전한 JSON 파싱")
@@ -122,6 +133,7 @@ def parse_json_response(text):
     text = text.strip()
 
     # 1) 가장 먼저, 응답 전체가 JSON인지 그대로 시도합니다.
+    # 가장 깨끗한 성공 케이스이므로 이 경로가 우선입니다.
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -145,6 +157,7 @@ def parse_json_response(text):
             pass
 
     # 3) 앞뒤 설명이 섞인 경우 JSON처럼 보이는 구간만 잘라 봅니다.
+    # 단순한 복구용입니다. 복잡한 문서에서는 더 엄격한 파서나 Structured Outputs를 씁니다.
     for start_char, end_char in [("{", "}"), ("[", "]")]:
         start = text.find(start_char)
         end = text.rfind(end_char)
@@ -159,6 +172,7 @@ def parse_json_response(text):
 
 
 # 파싱 함수가 흔한 응답 형태를 처리하는지 확인합니다.
+# 실제 API를 부르지 않고도 파서만 빠르게 테스트할 수 있습니다.
 test_cases = [
     '{"name": "테스트"}',                           # 정상 JSON
     '```json\n{"name": "테스트"}\n```',              # 마크다운 블록
@@ -177,6 +191,7 @@ for i, test in enumerate(test_cases):
 # 3부: 재시도 패턴 - 파싱 실패 시 LLM에게 다시 요청
 # ============================================================
 # 파싱이 실패하면 이전 응답을 보여주며 "JSON 형식으로 다시 답해 달라"고 요청합니다.
+# 이것은 LLM에게 구체적인 피드백을 주는 재시도 패턴입니다.
 print()
 print("=" * 60)
 print("3부: 파싱 실패 시 재시도 패턴")
@@ -211,6 +226,7 @@ def get_structured_response(prompt, system_prompt, max_retries=2):
                                "설명 없이 순수 JSON만 출력해주세요.",
                 })
             else:
+                # 끝까지 파싱할 수 없으면 호출부가 처리할 수 있도록 None으로 수렴시킵니다.
                 print(f"  [파싱 실패] 최대 재시도 초과")
                 return None
 
@@ -252,5 +268,8 @@ print("""
 4. Agent에서의 의미:
    - LLM은 "생각"하고, Agent(코드)는 "행동"한다
    - 구조화된 출력 = LLM의 생각을 Agent가 이해할 수 있는 형태로 변환
-   - 이것이 Chapter 4 Tool Use의 기반이 된다
+   - 이것이 Chapter 3 Tool Use의 기반이 된다
+
+5. 더 강한 보장이 필요하면:
+   - Structured Outputs(API가 스키마를 보장) → chapter2/07, 08 참고
 """)

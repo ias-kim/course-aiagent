@@ -3,6 +3,7 @@
 
 비동기(Async)란?
     "기다리는 시간"에 다른 일을 할 수 있게 해주는 프로그래밍 방식입니다.
+    여러 일을 동시에 계산한다는 뜻이 아니라, I/O 대기 시간을 겹쳐 쓰는 방식입니다.
 
 비유:
     - 동기(Sync):  카페에서 커피 주문 → 커피 나올 때까지 가만히 서서 대기 → 다음 주문
@@ -15,6 +16,7 @@
 
 핵심:
     CPU가 "계산"하는 시간이 아니라 "기다리는" 시간을 효율적으로 쓰는 것이 목적입니다.
+    그래서 비동기는 API 호출처럼 대기 시간이 긴 작업에서 효과가 큽니다.
 """
 
 import time
@@ -28,7 +30,7 @@ import asyncio
 def order_coffee_sync(name: str) -> str:
     """커피 주문 (동기): 만들어질 때까지 아무것도 못 함"""
     print(f"  ☕ {name} 주문 접수")
-    time.sleep(2)  # 2초 대기 (커피 제조 시간)
+    time.sleep(2)  # 현재 스레드를 2초 동안 막습니다. 그동안 다음 주문으로 못 넘어갑니다.
     print(f"  ✅ {name} 완성!")
     return f"{name} 완성"
 
@@ -52,7 +54,7 @@ def run_sync():
 async def order_coffee_async(name: str) -> str:
     """커피 주문 (비동기): 기다리는 동안 다른 주문 처리 가능"""
     print(f"  ☕ {name} 주문 접수")
-    await asyncio.sleep(2)  # 2초 대기하지만, 그 사이 다른 작업 실행 가능
+    await asyncio.sleep(2)  # 2초를 기다리되, 이벤트 루프에 제어권을 돌려줍니다.
     print(f"  ✅ {name} 완성!")
     return f"{name} 완성"
 
@@ -61,7 +63,8 @@ async def run_async():
     print("[비동기 방식] 3잔 주문 — 동시에 제조")
     start = time.time()
 
-    # 3개 주문을 동시에 시작
+    # gather에 코루틴 3개를 넘기면 같은 이벤트 루프에서 함께 진행됩니다.
+    # 세 주문이 모두 sleep 중인 시간이 겹치므로 총 시간은 약 2초가 됩니다.
     results = await asyncio.gather(
         order_coffee_async("아메리카노"),
         order_coffee_async("라떼"),
@@ -86,6 +89,6 @@ if __name__ == "__main__":
     )
 
     print("=" * 50)
-    print("결론: 동일한 3잔인데, 비동기는 1/3 시간에 완료!")
+    print("결론: 동일한 3잔인데, 비동기는 약 1/3 시간에 완료!")
     print("  동기  = 순차 실행 (기다림이 누적됨)")
     print("  비동기 = 기다리는 동안 다른 작업 실행 (기다림이 겹침)")

@@ -11,6 +11,10 @@ gather로 여러 코루틴을 동시에 실행하는 방법은 배웠습니다.
     1. asyncio.timeout()  - 시간 제한 (3.11+, 구버전은 wait_for)
     2. Semaphore          - 동시 실행 개수 제한
     3. TaskGroup 조합     - 제한, 포기, 완료 보장을 함께 쓰는 형태
+
+이 세 가지는 서로 대체 관계가 아닙니다.
+실무에서는 보통 "몇 개까지 동시에 보낼지", "얼마나 기다릴지",
+"작업 묶음을 어떻게 끝낼지"를 함께 정합니다.
 """
 
 import asyncio
@@ -20,6 +24,7 @@ import time
 # ── 공통: LLM API 호출 시뮬레이션 ────────────────────
 
 async def call_llm(prompt: str, delay: float = 1.0) -> str:
+    """LLM API 호출 흉내. delay는 네트워크/생성 대기 시간입니다."""
     await asyncio.sleep(delay)  # 네트워크 왕복 흉내
     return f"'{prompt}' 응답 도착"
 
@@ -33,12 +38,12 @@ async def call_llm(prompt: str, delay: float = 1.0) -> str:
 async def pattern1():
     print("[패턴 1] asyncio.timeout: 시간 제한")
 
-    # 정상 케이스: 1초 작업, 3초 제한
+    # 정상 케이스: 1초 작업, 3초 제한 → 제한 안에 끝나므로 성공합니다.
     async with asyncio.timeout(3):
         result = await call_llm("빠른 질문", delay=1)
         print(f"  성공: {result}")
 
-    # 초과 케이스: 5초 작업, 1초 제한
+    # 초과 케이스: 5초 작업, 1초 제한 → 1초가 지나면 TimeoutError가 발생합니다.
     try:
         async with asyncio.timeout(1):
             await call_llm("무거운 질문", delay=5)
@@ -55,12 +60,12 @@ async def pattern1():
 async def pattern2():
     print("\n[패턴 2] Semaphore: 동시 실행 개수 제한")
 
-    sem = asyncio.Semaphore(2)  # 동시에 최대 2개
+    sem = asyncio.Semaphore(2)  # 동시에 최대 2개만 sem 안으로 들어갈 수 있습니다.
     active = 0                  # 현재 실행 중인 개수 (관찰용)
 
     async def limited_call(n: int) -> str:
         nonlocal active
-        async with sem:         # 자리가 날 때까지 여기서 대기
+        async with sem:         # 자리가 날 때까지 여기서 대기합니다.
             active += 1
             print(f"  요청{n} 시작 (동시 실행: {active}개)")
             result = await call_llm(f"질문{n}", delay=1)
@@ -95,12 +100,13 @@ async def pattern3():
                 async with asyncio.timeout(1.5):
                     return await call_llm(f"질문{n}", delay=delay)
             except TimeoutError:
+                # 예외를 밖으로 던지지 않고 문자열로 바꿔 부분 실패를 허용합니다.
                 return f"'질문{n}' 시간 초과: 기본값으로 대체"
 
     delays = [0.5, 2.5, 0.5, 1.0]  # 두 번째 요청은 타임아웃될 예정
     async with asyncio.TaskGroup() as tg:
         tasks = [tg.create_task(safe_call(n, d)) for n, d in enumerate(delays, 1)]
-    # 여기까지 왔다는 것은 4개 작업이 모두 종료되었다는 뜻입니다.
+    # 여기까지 왔다는 것은 4개 작업이 성공/대체값 중 하나로 모두 종료되었다는 뜻입니다.
 
     for task in tasks:
         print(f"  {task.result()}")

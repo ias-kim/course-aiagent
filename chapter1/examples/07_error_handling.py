@@ -3,6 +3,10 @@ Chapter 1-7: 에러 핸들링과 재시도
 
 API 호출은 네트워크, 인증, 사용량 제한 등으로 언제든 실패할 수 있습니다.
 Agent를 실제로 쓰려면 실패 상황도 정상 흐름의 일부로 다뤄야 합니다.
+
+이 파일의 핵심은 "모든 에러를 똑같이 처리하지 않는다"입니다.
+기다렸다가 다시 시도할 에러와, 코드를 고쳐야 하는 에러를 구분합니다.
+
 - 주요 에러 타입과 대처법
 - 재시도 로직 (Exponential Backoff)
 - Agent 루프에 에러 핸들링 적용
@@ -50,13 +54,16 @@ MODEL = "claude-sonnet-4-6"
 #   APIError (500, 529 등)
 #     - 서버 측 일시적 오류 또는 과부하
 #     - 해결: 잠시 대기 후 재시도
+#
+# except는 구체적인 예외부터 먼저 잡는 것이 안전합니다.
+# 넓은 범위의 APIError를 먼저 잡으면 RateLimitError 같은 세부 예외가 가려질 수 있습니다.
 
 print("=" * 60)
 print("1부: 에러 타입별 처리")
 print("=" * 60)
 
 
-# --- 예시 1: 잘못된 모델명 → BadRequestError ---
+# --- 예시 1: 잘못된 모델명 → NotFoundError 또는 BadRequestError ---
 print("\n--- 잘못된 모델명으로 호출 ---")
 try:
     response = client.messages.create(
@@ -65,7 +72,7 @@ try:
         messages=[{"role": "user", "content": "안녕"}],
     )
 except NotFoundError as e:
-# 존재하지 않는 모델명은 404 NotFoundError로 올 수 있습니다.
+    # 존재하지 않는 모델명은 404 NotFoundError로 올 수 있습니다.
     print(f"[NotFoundError] 상태 코드: {e.status_code}")
     print(f"[NotFoundError] 메시지: {e.message}")
 except BadRequestError as e:
@@ -105,6 +112,14 @@ except AuthenticationError as e:
 # 일시적인 에러는 잠깐 기다렸다가 다시 시도하면 성공할 때가 많습니다.
 # 이때 재시도 간격을 점점 늘리면 서버와 우리 앱 모두에 부담이 줄어듭니다.
 #
+# 참고: anthropic SDK에는 이 로직이 이미 내장되어 있습니다.
+#   Anthropic(max_retries=2)  ← 429/5xx/타임아웃을 지수 백오프로 자동 재시도
+# 실무 기본은 SDK 내장 재시도이고(09_timeout.py 2부 참고), 아래처럼 직접
+# 구현하는 경우는 SDK가 안 해주는 것이 필요할 때입니다:
+#   재시도마다 로그 남기기, 실패 시 다른 모델로 폴백, 재시도 대상 커스텀 등.
+# 이 예제는 그 원리를 이해하기 위한 직접 구현 버전입니다.
+# 실제 서비스에서는 "SDK 기본 재시도 + 필요한 경우 추가 정책"으로 시작하는 편이 좋습니다.
+#
 #   1번째 재시도: 1초 대기
 #   2번째 재시도: 2초 대기
 #   3번째 재시도: 4초 대기
@@ -129,6 +144,7 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
     """
     delay = initial_delay
 
+    # max_retries=3이면 총 4번 시도합니다: 최초 1번 + 재시도 3번.
     for attempt in range(max_retries + 1):  # 처음 호출 1회 + 재시도 횟수만큼 반복합니다.
         try:
             response = client.messages.create(
@@ -149,7 +165,7 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
                 return None
 
         except APITimeoutError as e:
-            # 타임아웃도 일시적인 문제일 수 있으므로 재시도합니다.
+            # 타임아웃도 네트워크 상태에 따라 일시적으로 발생할 수 있으므로 재시도합니다.
             if attempt < max_retries:
                 print(f"  [Timeout] {delay}초 후 재시도... ({attempt + 1}/{max_retries})")
                 time.sleep(delay)
@@ -182,7 +198,7 @@ def call_with_retry(messages, max_retries=3, initial_delay=1.0):
     return None
 
 
-# 정상 호출 테스트
+# 정상 호출 테스트: 성공하면 문자열, 끝까지 실패하면 None을 받습니다.
 print("\n--- 정상 호출 ---")
 result = call_with_retry(
     messages=[{"role": "user", "content": "1+1=?"}]
@@ -194,6 +210,8 @@ print(f"응답: {result}")
 # 3부: Agent 루프에 에러 핸들링 적용
 # ============================================================
 # Chapter 1-5의 Agent 루프에 재시도와 실패 처리를 더한 버전입니다.
+# 포인트는 실패한 사용자 메시지를 히스토리에 남기지 않는 것입니다.
+# 실패한 요청까지 저장하면 다음 턴에서 모델이 존재하지 않는 응답을 본 것처럼 꼬일 수 있습니다.
 print()
 print("=" * 60)
 print("3부: 에러 핸들링이 적용된 Agent 루프")
